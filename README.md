@@ -97,17 +97,24 @@ LM-CE (ParakhAI)/
    pip install -r requirements.txt
    ```
 
-4. Create environment file:
+4. Create and configure environment file:
    ```bash
    cp .env.example .env
    ```
+   Open `backend/.env` and update the Supabase environment variables with your project credentials:
+   ```env
+   SUPABASE_URL=https://<your-project-id>.supabase.co
+   SUPABASE_SERVICE_ROLE_KEY=<your-supabase-service-role-key>
+   ```
+   > ⚠️ **Security Note:** Keep `SUPABASE_SERVICE_ROLE_KEY` strictly inside the backend `.env` file and never commit it to source control.
 
 5. Start the FastAPI development server:
    ```bash
    uvicorn app.main:app --reload --port 8000
    ```
    The backend API will be running at `http://localhost:8000`.  
-   Interactive API documentation (Swagger UI) is available at `http://localhost:8000/docs`.
+   Interactive API documentation (Swagger UI) is available at `http://localhost:8000/docs`.  
+   Check database connectivity at `http://localhost:8000/health/db`.
 
 ---
 
@@ -123,9 +130,14 @@ LM-CE (ParakhAI)/
    npm install
    ```
 
-3. Create environment file:
+3. Create and configure environment file:
    ```bash
    cp .env.example .env.local
+   ```
+   Open `frontend/.env.local` and set your public Supabase project credentials:
+   ```env
+   NEXT_PUBLIC_SUPABASE_URL=https://<your-project-id>.supabase.co
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-supabase-anon-key>
    ```
 
 4. Start the Next.js development server:
@@ -133,6 +145,7 @@ LM-CE (ParakhAI)/
    npm run dev
    ```
    The application will be accessible at `http://localhost:3000`.
+
 
 ---
 
