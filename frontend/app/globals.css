@@ -1,0 +1,195 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+  --lmce-primary: #20638b;
+  --lmce-primary-hover: #184f70;
+  --lmce-dark: #0f172a;
+  --lmce-slate: #1e293b;
+  --lmce-accent: #38bdf8;
+  --lmce-teal: #14b8a6;
+  --lmce-success: #22c55e;
+  --lmce-warning: #f59e0b;
+  --lmce-error: #ef4444;
+  --lmce-gold: #FFCC70;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-lmce-primary: var(--lmce-primary);
+  --color-lmce-primary-hover: var(--lmce-primary-hover);
+  --color-lmce-dark: var(--lmce-dark);
+  --color-lmce-slate: var(--lmce-slate);
+  --color-lmce-accent: var(--lmce-accent);
+  --color-lmce-teal: var(--lmce-teal);
+  --color-lmce-success: var(--lmce-success);
+  --color-lmce-warning: var(--lmce-warning);
+  --color-lmce-error: var(--lmce-error);
+  --color-lmce-gold: var(--lmce-gold);
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+}
+
+/* ── Scanning Line Animation ── */
+@keyframes scanLine {
+  0% { top: 8%; opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { top: 88%; opacity: 0; }
+}
+
+.animate-scan-line {
+  animation: scanLine 3s ease-in-out infinite;
+}
+
+/* ── Bounding Box Pulse ── */
+@keyframes boxPulse {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.03); }
+}
+
+.animate-box-pulse {
+  animation: boxPulse 2.5s ease-in-out infinite;
+}
+
+/* ── Float Up Animation ── */
+@keyframes floatUp {
+  0% { transform: translateY(0) rotate(0deg); opacity: 0.7; }
+  50% { opacity: 1; }
+  100% { transform: translateY(-120px) rotate(180deg); opacity: 0; }
+}
+
+.animate-float-up {
+  animation: floatUp 6s ease-in-out infinite;
+}
+
+/* ── Gradient Shift ── */
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.animate-gradient-shift {
+  background-size: 200% 200%;
+  animation: gradientShift 8s ease infinite;
+}
+
+/* ── Subtle Glow Pulse ── */
+@keyframes glowPulse {
+  0%, 100% { box-shadow: 0 0 15px rgba(56, 189, 248, 0.15); }
+  50% { box-shadow: 0 0 30px rgba(56, 189, 248, 0.35); }
+}
+
+.animate-glow-pulse {
+  animation: glowPulse 3s ease-in-out infinite;
+}
+
+/* ── Typing cursor blink ── */
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+.animate-blink {
+  animation: blink 1s step-end infinite;
+}
+
+/* ── Fade In Up ── */
+@keyframes fadeInUp {
+  0% { opacity: 0; transform: translateY(20px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.6s ease-out forwards;
+}
+
+/* ── Stagger children ── */
+.stagger-children > *:nth-child(1) { animation-delay: 0.1s; }
+.stagger-children > *:nth-child(2) { animation-delay: 0.2s; }
+.stagger-children > *:nth-child(3) { animation-delay: 0.3s; }
+.stagger-children > *:nth-child(4) { animation-delay: 0.4s; }
+
+/* ── Dash offset for SVG animations ── */
+@keyframes dashDraw {
+  0% { stroke-dashoffset: 200; }
+  100% { stroke-dashoffset: 0; }
+}
+
+.animate-dash-draw {
+  stroke-dasharray: 200;
+  animation: dashDraw 2s ease-in-out infinite alternate;
+}
+
+/* ── Checkmark appear ── */
+@keyframes checkAppear {
+  0% { transform: scale(0) rotate(-45deg); opacity: 0; }
+  60% { transform: scale(1.2) rotate(0deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+.animate-check-appear {
+  animation: checkAppear 0.6s ease-out forwards;
+}
+
+/* ── Slide shimmer ── */
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.animate-shimmer {
+  animation: shimmer 2s ease-in-out infinite;
+}
+
+/* ── Custom scrollbar ── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* ── Auth form focus transitions ── */
+.auth-input {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.auth-input:focus {
+  border-color: var(--lmce-primary);
+  box-shadow: 0 0 0 3px rgba(32, 99, 139, 0.1);
+}
+
+/* ── Tab underline transition ── */
+.tab-indicator {
+  transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── Camera viewfinder scan-line animation ── */
+@keyframes scanLine {
+  0% {
+    transform: translateY(-80px);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(80px);
+    opacity: 0;
+  }
+}
+
+.animate-scan-line {
+  animation: scanLine 2.5s ease-in-out infinite;
+}
