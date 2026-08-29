@@ -504,3 +504,61 @@ export async function deleteInspectionImage(
     return false;
   }
 }
+
+// ---- Processing API ----
+
+export interface ImageProcessingDetail {
+  image_id: string;
+  original_path: string;
+  status: string;
+  width: number;
+  height: number;
+  format: string;
+  mode: string;
+  orientation_corrected: boolean;
+  resized: boolean;
+  original_size_bytes: number;
+  processed_size_bytes: number;
+  error: string | null;
+  metadata: Record<string, unknown>;
+}
+
+export interface ProcessingResult {
+  inspection_id: string;
+  status: string;
+  total_images: number;
+  processed_images: number;
+  failed_images: number;
+  images: ImageProcessingDetail[];
+  errors: string[];
+}
+
+export async function processInspection(
+  token: string,
+  inspectionId: string,
+): Promise<ProcessingResult> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/inspections/${inspectionId}/process`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => null);
+      const message =
+        errorBody?.detail || `Failed to process inspection (HTTP ${response.status})`;
+      throw new Error(message);
+    }
+
+    return (await response.json()) as ProcessingResult;
+  } catch (error) {
+    console.error("Failed to process inspection:", error);
+    throw error;
+  }
+}

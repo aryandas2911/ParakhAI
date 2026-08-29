@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { FileText, ArrowRight, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
@@ -10,8 +10,10 @@ import {
   fetchInspectionById,
   fetchInspectionImages,
   deleteInspectionImage,
+  processInspection,
   type InspectionData,
   type InspectionImageData,
+  type ProcessingResult,
 } from "@/lib/api";
 import ComplianceHeader from "./components/ComplianceHeader";
 import EvidenceFrameCard from "./components/EvidenceFrameCard";
@@ -49,6 +51,11 @@ export default function ComplianceAnalysisPage() {
   // Declaration data state (mutable by officer edits)
   const [declarations, setDeclarations] = useState<DeclarationRow[]>([]);
 
+  // Processing state
+  const [processing, setProcessing] = useState(false);
+  const [processingResult, setProcessingResult] = useState<ProcessingResult | null>(null);
+  const [processingError, setProcessingError] = useState<string | null>(null);
+
   // Fetch inspection data
   useEffect(() => {
     if (!session?.access_token || !inspectionId) return;
@@ -70,6 +77,30 @@ export default function ComplianceAnalysisPage() {
 
     load();
   }, [session?.access_token, inspectionId]);
+
+  // Auto-process images once they finish loading
+  const hasAutoProcessed = useRef(false);
+  useEffect(() => {
+    if (!session?.access_token || !inspectionId) return;
+    if (loading || images.length === 0 || hasAutoProcessed.current) return;
+
+    hasAutoProcessed.current = true;
+
+    const autoProcess = async () => {
+      setProcessing(true);
+      setProcessingError(null);
+      try {
+        const result = await processInspection(session.access_token, inspectionId);
+        setProcessingResult(result);
+      } catch (err) {
+        setProcessingError(err instanceof Error ? err.message : "Auto-processing failed.");
+      } finally {
+        setProcessing(false);
+      }
+    };
+
+    autoProcess();
+  }, [session?.access_token, inspectionId, loading, images.length]);
 
   // Open evidence viewer
   const handleViewEvidence = useCallback((initialIndex?: number) => {
@@ -106,6 +137,22 @@ export default function ComplianceAnalysisPage() {
   const handleGenerateReport = useCallback(() => {
     router.push("/reports/RPT-LM-CE-2026-0042");
   }, [router]);
+
+  // Process images
+  const handleProcessImages = useCallback(async () => {
+    if (!session?.access_token || !inspectionId || processing) return;
+    setProcessing(true);
+    setProcessingError(null);
+    setProcessingResult(null);
+    try {
+      const result = await processInspection(session.access_token, inspectionId);
+      setProcessingResult(result);
+    } catch (err) {
+      setProcessingError(err instanceof Error ? err.message : "Processing failed.");
+    } finally {
+      setProcessing(false);
+    }
+  }, [session?.access_token, inspectionId, processing]);
 
   // Delete image handler
   const handleDeleteImage = useCallback(
@@ -249,19 +296,68 @@ export default function ComplianceAnalysisPage() {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, delay: 0.35 }}
-        className="flex items-center justify-end rounded-xl bg-white shadow-xs border border-slate-100/90 px-5 sm:px-6 py-4"
+        className="flex items-center justify-between rounded-xl bg-white shadow-xs border border-slate-100/90 px-5 sm:px-6 py-4"
       >
-        <motion.button
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          onClick={handleGenerateReport}
-          id="btn-generate-report"
-          className="inline-flex items-center gap-2.5 px-7 py-3 rounded-lg bg-[#20638b] text-white text-sm font-semibold shadow-sm hover:bg-[#184f70] active:bg-[#13445e] transition-all duration-200 cursor-pointer"
-        >
-          <FileText className="w-4 h-4" />
-          <span>Generate Report</span>
-          <ArrowRight className="w-4 h-4" />
-        </motion.button>
+        {/* Processing Status */}
+        <div className="flex-1 min-w-0">
+          {processing && (
+            <div className="flex items-center gap-2 text-sm text-slate-500">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span>Processing images...</span>
+            </div>
+          )}
+          {processingError && (
+            <p className="text-sm font-medium text-red-600">{processingError}</p>
+          )}
+          {processingResult && !processing && (
+            <p className="text-sm text-slate-600">
+              Processed{" "}
+              <span className="font-semibold text-emerald-600">
+                {processingResult.processed_images}
+              </span>
+              /{processingResult.total_images} images
+              {processingResult.failed_images > 0 && (
+                <span className="text-red-500 ml-1">
+                  ({processingResult.failed_images} failed)
+                </span>
+              )}
+            </p>
+          )}
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center gap-3">
+          {images.length > 0 && (
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={handleProcessImages}
+              disabled={processing}
+              id="btn-process-images"
+              className="inline-flex items-center gap-2.5 px-6 py-3 rounded-lg border border-slate-200 text-sm font-semibold text-slate-700 bg-white hover:bg-slate-50 hover:border-slate-300 hover:text-[#20638b] active:bg-slate-100 transition-all duration-200 cursor-pointer shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {processing ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 0 1-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 0 1 4.5 0m0 0v5.714a2.25 2.25 0 0 0 .659 1.591L19 14.5m-4.25-11.396c.251.023.501.05.75.082M12 21a8.966 8.966 0 0 0 5.982-2.275M12 21a8.966 8.966 0 0 1-5.982-2.275M15.75 3.186a24.284 24.284 0 0 1 2.293.094m-6.293.094A24.284 24.284 0 0 0 9.467 3.186m6.293.094c.183.042.365.083.546.124m-.546-.124a24.284 24.284 0 0 1-2.293-.094" />
+                </svg>
+              )}
+              <span>{processing ? "Processing..." : "Process Images"}</span>
+            </motion.button>
+          )}
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={handleGenerateReport}
+            id="btn-generate-report"
+            className="inline-flex items-center gap-2.5 px-7 py-3 rounded-lg bg-[#20638b] text-white text-sm font-semibold shadow-sm hover:bg-[#184f70] active:bg-[#13445e] transition-all duration-200 cursor-pointer"
+          >
+            <FileText className="w-4 h-4" />
+            <span>Generate Report</span>
+            <ArrowRight className="w-4 h-4" />
+          </motion.button>
+        </div>
       </motion.div>
 
       {/* Modals */}
