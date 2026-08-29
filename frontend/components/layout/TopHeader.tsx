@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Bell, HelpCircle, Menu, CheckCircle2, Server, ServerOff } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { checkBackendHealth, HealthStatusResponse } from "@/lib/api";
+import { checkBackendHealth, checkSchemaHealth, HealthStatusResponse, SchemaHealthStatusResponse } from "@/lib/api";
 
 interface TopHeaderProps {
   onMenuClick?: () => void;
@@ -17,12 +17,15 @@ export default function TopHeader({
   const [showNotifications, setShowNotifications] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [apiStatus, setApiStatus] = useState<"checking" | "connected" | "offline">("checking");
+  const [schemaStatus, setSchemaStatus] = useState<"checking" | "ready" | "pending">("checking");
   const [apiInfo, setApiInfo] = useState<HealthStatusResponse | null>(null);
+  const [schemaInfo, setSchemaInfo] = useState<SchemaHealthStatusResponse | null>(null);
 
   useEffect(() => {
     let isMounted = true;
     const fetchStatus = async () => {
       const data = await checkBackendHealth();
+      const schemaData = await checkSchemaHealth();
       if (isMounted) {
         if (data && data.status === "ok") {
           setApiStatus("connected");
@@ -30,6 +33,14 @@ export default function TopHeader({
         } else {
           setApiStatus("offline");
           setApiInfo(null);
+        }
+
+        if (schemaData && schemaData.accessible && schemaData.status === "ok") {
+          setSchemaStatus("ready");
+          setSchemaInfo(schemaData);
+        } else {
+          setSchemaStatus("pending");
+          setSchemaInfo(schemaData);
         }
       }
     };
@@ -41,6 +52,7 @@ export default function TopHeader({
       clearInterval(interval);
     };
   }, []);
+
 
   return (
     <header className="sticky top-0 z-20 flex h-16 w-full items-center justify-between border-b border-slate-100 bg-white px-4 sm:px-6 lg:px-8 shadow-xs">
@@ -89,12 +101,47 @@ export default function TopHeader({
           />
           <span className="text-[11px] font-semibold select-none">
             {apiStatus === "connected"
-              ? "Backend API Connected"
+              ? "Backend API"
               : apiStatus === "checking"
               ? "Checking API..."
               : "Backend Offline"}
           </span>
         </div>
+
+        {/* Database Schema Status Badge */}
+        <div
+          id="schema-status-badge"
+          className={`hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+            schemaStatus === "ready"
+              ? "bg-blue-50 text-blue-700 border-blue-200"
+              : schemaStatus === "checking"
+              ? "bg-slate-50 text-slate-600 border-slate-200"
+              : "bg-amber-50 text-amber-700 border-amber-200"
+          }`}
+          title={
+            schemaInfo && schemaInfo.verified_tables
+              ? `Tables Verified (${schemaInfo.count}): ${schemaInfo.verified_tables.join(", ")}`
+              : "Database Schema status"
+          }
+        >
+          <span
+            className={`w-2 h-2 rounded-full ${
+              schemaStatus === "ready"
+                ? "bg-blue-500"
+                : schemaStatus === "checking"
+                ? "bg-slate-400 animate-pulse"
+                : "bg-amber-500"
+            }`}
+          />
+          <span className="text-[11px] font-semibold select-none">
+            {schemaStatus === "ready"
+              ? `DB Schema (${schemaInfo?.count || 9} Tables)`
+              : schemaStatus === "checking"
+              ? "Checking Schema..."
+              : "Schema Pending"}
+          </span>
+        </div>
+
         {/* Notification Bell */}
         <div className="relative">
           <button

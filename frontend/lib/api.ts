@@ -43,3 +43,28 @@ export async function checkDatabaseHealth(): Promise<DbHealthStatusResponse | nu
   }
 }
 
+
+export interface SchemaHealthStatusResponse {
+  status: string;
+  database: string;
+  accessible: boolean;
+  verified_tables?: string[];
+  count?: number;
+  message?: string;
+  missing_tables?: Array<{ table: string; error: string }>;
+}
+
+export async function checkSchemaHealth(): Promise<SchemaHealthStatusResponse | null> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/health/schema`, {
+      cache: "no-store",
+    });
+    const data = (await response.json()) as SchemaHealthStatusResponse;
+    return data;
+  } catch (error) {
+    console.error("Failed to connect to backend schema health endpoint:", error);
+    return null;
+  }
+}
+
+
