@@ -19,6 +19,8 @@ interface InspectionDetailsCardProps {
   onCategoryChange: (val: string) => void;
   identifier: string;
   onIdentifierChange: (val: string) => void;
+  manufacturer: string;
+  onManufacturerChange: (val: string) => void;
   location: string;
   onLocationChange: (val: string) => void;
 }
@@ -28,6 +30,8 @@ export default function InspectionDetailsCard({
   onCategoryChange,
   identifier,
   onIdentifierChange,
+  manufacturer,
+  onManufacturerChange,
   location,
   onLocationChange,
 }: InspectionDetailsCardProps) {
@@ -79,8 +83,7 @@ export default function InspectionDetailsCard({
             htmlFor="product-identifier"
             className="block text-sm font-semibold text-slate-700 mb-1.5"
           >
-            Product Identifier{" "}
-            <span className="text-slate-400 font-normal">(Optional)</span>
+            Product Name <span className="text-red-500">*</span>
           </label>
           <input
             id="product-identifier"
@@ -88,6 +91,24 @@ export default function InspectionDetailsCard({
             value={identifier}
             onChange={(e) => onIdentifierChange(e.target.value)}
             placeholder="e.g., EAN, UPC, Batch No."
+            className="auth-input w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 outline-none"
+          />
+        </div>
+
+        {/* Manufacturer */}
+        <div>
+          <label
+            htmlFor="product-manufacturer"
+            className="block text-sm font-semibold text-slate-700 mb-1.5"
+          >
+            Manufacturer <span className="text-red-500">*</span>
+          </label>
+          <input
+            id="product-manufacturer"
+            type="text"
+            value={manufacturer}
+            onChange={(e) => onManufacturerChange(e.target.value)}
+            placeholder="Manufacturer name"
             className="auth-input w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 outline-none"
           />
         </div>

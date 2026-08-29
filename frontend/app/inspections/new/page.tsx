@@ -3,6 +3,8 @@
 import React, { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import AppShell from "@/components/layout/AppShell";
+import { useAuth } from "@/context/AuthContext";
+import { createProduct } from "@/lib/api";
 import InspectionDetailsCard from "./components/InspectionDetailsCard";
 import ImageCaptureZone from "./components/ImageCaptureZone";
 import ProductImagesGallery, {
@@ -35,10 +37,12 @@ const defaultImages: ProductImage[] = [
 
 export default function NewInspectionPage() {
   const router = useRouter();
+  const { session } = useAuth();
 
   // Form state
   const [category, setCategory] = useState("");
   const [identifier, setIdentifier] = useState("");
+  const [manufacturer, setManufacturer] = useState("");
   const [location, setLocation] = useState("");
 
   // Image state
@@ -49,6 +53,9 @@ export default function NewInspectionPage() {
 
   // Camera modal state
   const [isCameraOpen, setIsCameraOpen] = useState(false);
+
+  // Error state
+  const [formError, setFormError] = useState<string | null>(null);
 
   const handleAddFiles = useCallback((files: File[]) => {
     const newImages: ProductImage[] = files.map((file, i) => ({
@@ -69,13 +76,36 @@ export default function NewInspectionPage() {
     });
   }, []);
 
-  const handleAnalyze = () => {
+  const handleAnalyze = async () => {
+    if (!session?.access_token) return;
+
+    if (!category || !identifier.trim() || !manufacturer.trim()) {
+      setFormError("Please fill in all required fields (Product Name, Category, Manufacturer).");
+      return;
+    }
+
+    setFormError(null);
     setIsAnalyzing(true);
-    // Simulate analysis processing, then navigate to compliance analysis
-    setTimeout(() => {
+
+    try {
+      const product = await createProduct(session.access_token, {
+        product_name: identifier.trim(),
+        category,
+        manufacturer: manufacturer.trim(),
+      });
+
+      if (!product) {
+        setFormError("Failed to create product. Please try again.");
+        setIsAnalyzing(false);
+        return;
+      }
+
+      // Navigate to the inspection detail page with the real product_id
+      router.push(`/inspections/${product.product_id}`);
+    } catch {
+      setFormError("An error occurred while creating the product. Please try again.");
       setIsAnalyzing(false);
-      router.push("/inspections/LM-2026-00042");
-    }, 2500);
+    }
   };
 
   // Camera modal handlers
@@ -105,6 +135,13 @@ export default function NewInspectionPage() {
         </p>
       </div>
 
+      {/* Error Banner */}
+      {formError && (
+        <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+          {formError}
+        </div>
+      )}
+
       {/* Top Grid: Details (Left) + Capture Zone (Right) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
         <div className="lg:col-span-5 flex flex-col">
@@ -113,6 +150,8 @@ export default function NewInspectionPage() {
             onCategoryChange={setCategory}
             identifier={identifier}
             onIdentifierChange={setIdentifier}
+            manufacturer={manufacturer}
+            onManufacturerChange={setManufacturer}
             location={location}
             onLocationChange={setLocation}
           />

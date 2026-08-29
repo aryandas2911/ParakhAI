@@ -164,3 +164,136 @@ export async function updateProfile(
     throw error;
   }
 }
+
+// ---- Products API ----
+
+export interface ProductData {
+  product_id: string;
+  product_name: string;
+  category: string;
+  manufacturer: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProductCreatePayload {
+  product_name: string;
+  category: string;
+  manufacturer: string;
+}
+
+export interface ProductUpdatePayload {
+  product_name?: string;
+  category?: string;
+  manufacturer?: string;
+}
+
+export async function createProduct(
+  token: string,
+  payload: ProductCreatePayload,
+): Promise<ProductData | null> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/products`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => null);
+      const message =
+        errorBody?.detail || `Failed to create product (HTTP ${response.status})`;
+      throw new Error(message);
+    }
+
+    return (await response.json()) as ProductData;
+  } catch (error) {
+    console.error("Failed to create product:", error);
+    throw error;
+  }
+}
+
+export async function fetchProducts(
+  token: string,
+  search?: string,
+): Promise<ProductData[]> {
+  try {
+    const url = new URL(`${API_BASE_URL}/api/products`);
+    if (search) url.searchParams.set("search", search);
+
+    const response = await fetch(url.toString(), {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error ${response.status}`);
+    }
+
+    return (await response.json()) as ProductData[];
+  } catch (error) {
+    console.error("Failed to fetch products:", error);
+    return [];
+  }
+}
+
+export async function fetchProductById(
+  token: string,
+  productId: string,
+): Promise<ProductData | null> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/products/${productId}`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error ${response.status}`);
+    }
+
+    return (await response.json()) as ProductData;
+  } catch (error) {
+    console.error("Failed to fetch product:", error);
+    return null;
+  }
+}
+
+export async function updateProduct(
+  token: string,
+  productId: string,
+  payload: ProductUpdatePayload,
+): Promise<ProductData | null> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/products/${productId}`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => null);
+      const message =
+        errorBody?.detail || `Failed to update product (HTTP ${response.status})`;
+      throw new Error(message);
+    }
+
+    return (await response.json()) as ProductData;
+  } catch (error) {
+    console.error("Failed to update product:", error);
+    throw error;
+  }
+}
