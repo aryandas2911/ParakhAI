@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import AppShell from "@/components/layout/AppShell";
 import { useAuth } from "@/context/AuthContext";
-import { createProduct, createInspection } from "@/lib/api";
+import { createProduct, createInspection, uploadInspectionImage } from "@/lib/api";
 import InspectionDetailsCard from "./components/InspectionDetailsCard";
 import ImageCaptureZone from "./components/ImageCaptureZone";
 import ProductImagesGallery, {
@@ -12,28 +12,6 @@ import ProductImagesGallery, {
 } from "./components/ProductImagesGallery";
 import InspectionFooterBar from "./components/InspectionFooterBar";
 import CameraCaptureModal from "./components/CameraCaptureModal";
-
-// Default sample product images
-const defaultImages: ProductImage[] = [
-  {
-    id: "default-1",
-    src: "/images/sample/back_declarations.jpg",
-    label: "Back Declarations",
-    isDefault: true,
-  },
-  {
-    id: "default-2",
-    src: "/images/sample/front_package.jpg",
-    label: "Front Package",
-    isDefault: true,
-  },
-  {
-    id: "default-3",
-    src: "/images/sample/barcode_mrp.jpg",
-    label: "Barcode & MRP",
-    isDefault: true,
-  },
-];
 
 export default function NewInspectionPage() {
   const router = useRouter();
@@ -45,11 +23,13 @@ export default function NewInspectionPage() {
   const [manufacturer, setManufacturer] = useState("");
   const [location, setLocation] = useState("");
 
-  // Image state
-  const [images, setImages] = useState<ProductImage[]>(defaultImages);
+  // Image state — store File objects alongside display data for upload
+  const [images, setImages] = useState<ProductImage[]>([]);
+  const imageFilesRef = useRef<Map<string, File>>(new Map());
 
   // Analysis state
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<string | null>(null);
 
   // Camera modal state
   const [isCameraOpen, setIsCameraOpen] = useState(false);
@@ -58,18 +38,25 @@ export default function NewInspectionPage() {
   const [formError, setFormError] = useState<string | null>(null);
 
   const handleAddFiles = useCallback((files: File[]) => {
-    const newImages: ProductImage[] = files.map((file, i) => ({
-      id: `upload-${Date.now()}-${i}`,
-      src: URL.createObjectURL(file),
-      label: file.name.replace(/\.[^.]+$/, ""),
-    }));
+    const allowedTypes = ["image/jpeg", "image/png"];
+    const validFiles = files.filter((f) => allowedTypes.includes(f.type));
+    const newImages: ProductImage[] = validFiles.map((file, i) => {
+      const id = `upload-${Date.now()}-${i}`;
+      imageFilesRef.current.set(id, file);
+      return {
+        id,
+        src: URL.createObjectURL(file),
+        label: file.name.replace(/\.[^.]+$/, ""),
+      };
+    });
     setImages((prev) => [...prev, ...newImages]);
   }, []);
 
   const handleRemoveImage = useCallback((id: string) => {
+    imageFilesRef.current.delete(id);
     setImages((prev) => {
       const removed = prev.find((img) => img.id === id);
-      if (removed && !removed.isDefault && removed.src.startsWith("blob:")) {
+      if (removed && removed.src.startsWith("blob:")) {
         URL.revokeObjectURL(removed.src);
       }
       return prev.filter((img) => img.id !== id);
@@ -110,6 +97,29 @@ export default function NewInspectionPage() {
         return;
       }
 
+      // Upload non-default images to Supabase Storage
+      const filesToUpload = images.filter(
+        (img) => !img.isDefault && imageFilesRef.current.has(img.id)
+      );
+
+      if (filesToUpload.length > 0) {
+        setUploadProgress(`Uploading ${filesToUpload.length} image(s)...`);
+        for (const img of filesToUpload) {
+          const file = imageFilesRef.current.get(img.id);
+          if (!file) continue;
+          try {
+            await uploadInspectionImage(
+              session.access_token,
+              inspection.inspection_id,
+              file
+            );
+          } catch (err) {
+            console.error(`Failed to upload image ${img.label}:`, err);
+          }
+        }
+        setUploadProgress(null);
+      }
+
       router.push(`/inspections/${inspection.inspection_id}`);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "An error occurred while creating the inspection. Please try again.";
@@ -124,8 +134,10 @@ export default function NewInspectionPage() {
   }, []);
 
   const handleCameraCaptured = useCallback((file: File) => {
+    const id = `captured-${Date.now()}`;
+    imageFilesRef.current.set(id, file);
     const newImage: ProductImage = {
-      id: `captured-${Date.now()}`,
+      id,
       src: URL.createObjectURL(file),
       label: "Captured Label",
     };
@@ -149,6 +161,13 @@ export default function NewInspectionPage() {
       {formError && (
         <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
           {formError}
+        </div>
+      )}
+
+      {/* Upload Progress */}
+      {uploadProgress && (
+        <div className="rounded-lg bg-blue-50 border border-blue-200 px-4 py-3 text-sm text-blue-700">
+          {uploadProgress}
         </div>
       )}
 

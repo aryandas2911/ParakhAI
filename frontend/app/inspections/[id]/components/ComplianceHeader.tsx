@@ -27,7 +27,7 @@ export default function ComplianceHeader({
           transition={{ duration: 0.4 }}
           className="text-2xl sm:text-3xl font-bold text-slate-800 tracking-tight"
         >
-          Compliance Analysis
+          Product Analysis
         </motion.h1>
         <motion.p
           initial={{ opacity: 0, y: -4 }}

@@ -6,7 +6,13 @@ import { FileText, ArrowRight, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import AppShell from "@/components/layout/AppShell";
 import { useAuth } from "@/context/AuthContext";
-import { fetchInspectionById, type InspectionData } from "@/lib/api";
+import {
+  fetchInspectionById,
+  fetchInspectionImages,
+  deleteInspectionImage,
+  type InspectionData,
+  type InspectionImageData,
+} from "@/lib/api";
 import ComplianceHeader from "./components/ComplianceHeader";
 import EvidenceFrameCard from "./components/EvidenceFrameCard";
 import DeclarationAnalysisTable, {
@@ -24,12 +30,16 @@ export default function ComplianceAnalysisPage() {
   const inspectionId = params.id as string;
 
   const [inspection, setInspection] = useState<InspectionData | null>(null);
+  const [images, setImages] = useState<InspectionImageData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Evidence Viewer Modal state
   const [evidenceModalOpen, setEvidenceModalOpen] = useState(false);
   const [evidenceInitialIndex, setEvidenceInitialIndex] = useState(0);
+
+  // Evidence frame navigation state
+  const [frameImageIndex, setFrameImageIndex] = useState(0);
 
   // Edit Declaration Modal state
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -51,6 +61,9 @@ export default function ComplianceAnalysisPage() {
         setError("Inspection not found or you are not authorized to view it.");
       } else {
         setInspection(data);
+        // Fetch images
+        const imgs = await fetchInspectionImages(session.access_token, inspectionId);
+        setImages(imgs);
       }
       setLoading(false);
     };
@@ -93,6 +106,31 @@ export default function ComplianceAnalysisPage() {
   const handleGenerateReport = useCallback(() => {
     router.push("/reports/RPT-LM-CE-2026-0042");
   }, [router]);
+
+  // Delete image handler
+  const handleDeleteImage = useCallback(
+    async (imageId: string) => {
+      if (!session?.access_token || !inspectionId) return;
+      const ok = await deleteInspectionImage(
+        session.access_token,
+        inspectionId,
+        imageId
+      );
+      if (ok) {
+        setImages((prev) => prev.filter((img) => img.image_id !== imageId));
+      }
+    },
+    [session?.access_token, inspectionId]
+  );
+
+  // Map images to EvidenceViewerModal format
+  const evidenceImages = images.map((img) => ({
+    src: img.signed_url,
+    label: img.image_type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+  }));
+
+  // Primary image for the frame card
+  const primaryImage = images.length > 0 ? images[0] : null;
 
   // Loading state
   if (loading) {
@@ -138,9 +176,12 @@ export default function ComplianceAnalysisPage() {
         {/* Left Column - Evidence Frame */}
         <div className="lg:col-span-5 flex flex-col">
           <EvidenceFrameCard
-            imageSrc="/images/sample/front_package.jpg"
-            imageAlt={`${inspection.product_name || "Product"} - Front Package`}
-            onViewEvidence={() => handleViewEvidence(0)}
+            imageSrc={evidenceImages[frameImageIndex]?.src}
+            imageAlt={evidenceImages[frameImageIndex]?.label || "Product Image"}
+            images={evidenceImages}
+            currentIndex={frameImageIndex}
+            onNavigate={setFrameImageIndex}
+            onViewEvidence={() => handleViewEvidence(frameImageIndex)}
           />
         </div>
 
@@ -156,6 +197,52 @@ export default function ComplianceAnalysisPage() {
           />
         </div>
       </div>
+
+      {/* Uploaded Images Section */}
+      {images.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.3 }}
+          className="rounded-xl bg-white shadow-xs border border-slate-100/90 overflow-hidden"
+        >
+          <div className="px-5 py-4 border-b border-slate-50 flex items-center justify-between">
+            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+              Uploaded Images ({images.length})
+            </h3>
+          </div>
+          <div className="p-5 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+            {images.map((img) => (
+              <div key={img.image_id} className="relative group">
+                <img
+                  src={img.signed_url}
+                  alt={img.image_type}
+                  className="w-full h-32 object-cover rounded-lg border border-slate-100"
+                />
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center gap-2">
+                  <button
+                    onClick={() => handleViewEvidence(
+                      images.findIndex((i) => i.image_id === img.image_id)
+                    )}
+                    className="px-2 py-1 text-[10px] font-semibold text-white bg-white/20 rounded hover:bg-white/30 transition-colors"
+                  >
+                    View
+                  </button>
+                  <button
+                    onClick={() => handleDeleteImage(img.image_id)}
+                    className="px-2 py-1 text-[10px] font-semibold text-red-200 bg-red-500/30 rounded hover:bg-red-500/50 transition-colors"
+                  >
+                    Remove
+                  </button>
+                </div>
+                <span className="absolute bottom-1 left-1 text-[9px] font-medium text-white bg-black/50 px-1.5 py-0.5 rounded">
+                  {img.image_type.replace(/_/g, " ")}
+                </span>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      )}
 
       {/* Footer Action Bar */}
       <motion.div
@@ -182,6 +269,7 @@ export default function ComplianceAnalysisPage() {
         isOpen={evidenceModalOpen}
         onClose={() => setEvidenceModalOpen(false)}
         initialIndex={evidenceInitialIndex}
+        images={evidenceImages.length > 0 ? evidenceImages : undefined}
       />
       <EditDeclarationModal
         isOpen={editModalOpen}

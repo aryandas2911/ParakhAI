@@ -19,7 +19,7 @@ export default function ImageCaptureZone({ onFilesAdded, onOpenCamera }: ImageCa
       e.preventDefault();
       setIsDragOver(false);
       const files = Array.from(e.dataTransfer.files).filter((f) =>
-        f.type.startsWith("image/")
+        f.type === "image/jpeg" || f.type === "image/png"
       );
       if (files.length > 0) onFilesAdded(files);
     },
@@ -60,7 +60,7 @@ export default function ImageCaptureZone({ onFilesAdded, onOpenCamera }: ImageCa
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*"
+        accept="image/jpeg,image/png"
         multiple
         className="hidden"
         onChange={handleFileSelect}
@@ -68,7 +68,7 @@ export default function ImageCaptureZone({ onFilesAdded, onOpenCamera }: ImageCa
       <input
         ref={cameraInputRef}
         type="file"
-        accept="image/*"
+        accept="image/jpeg,image/png"
         capture="environment"
         className="hidden"
         onChange={handleFileSelect}

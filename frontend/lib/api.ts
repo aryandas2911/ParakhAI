@@ -393,3 +393,114 @@ export async function fetchInspectionById(
     return null;
   }
 }
+
+// ---- Inspection Images API ----
+
+export interface InspectionImageData {
+  image_id: string;
+  inspection_id: string;
+  storage_path: string;
+  image_type: string;
+  signed_url: string;
+  created_at: string;
+}
+
+export async function uploadInspectionImage(
+  token: string,
+  inspectionId: string,
+  file: File,
+  imageType: string = "product",
+): Promise<InspectionImageData | null> {
+  try {
+    // Ensure the file has a proper MIME type - create a new File with correct type if needed
+    let uploadFile = file;
+    if (!file.type || file.type === "application/octet-stream" || file.type.startsWith("text/")) {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      const mimeMap: Record<string, string> = {
+        jpg: "image/jpeg",
+        jpeg: "image/jpeg",
+        png: "image/png",
+      };
+      const correctType = mimeMap[ext] || "image/jpeg";
+      uploadFile = new File([file], file.name, { type: correctType });
+    }
+
+    const formData = new FormData();
+    formData.append("file", uploadFile, uploadFile.name);
+    formData.append("image_type", imageType);
+
+    const response = await fetch(
+      `${API_BASE_URL}/api/inspections/${inspectionId}/images`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      }
+    );
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => null);
+      const message =
+        errorBody?.detail || `Failed to upload image (HTTP ${response.status})`;
+      throw new Error(message);
+    }
+
+    return (await response.json()) as InspectionImageData;
+  } catch (error) {
+    console.error("Failed to upload inspection image:", error);
+    throw error;
+  }
+}
+
+export async function fetchInspectionImages(
+  token: string,
+  inspectionId: string,
+): Promise<InspectionImageData[]> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/inspections/${inspectionId}/images`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        cache: "no-store",
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error ${response.status}`);
+    }
+
+    return (await response.json()) as InspectionImageData[];
+  } catch (error) {
+    console.error("Failed to fetch inspection images:", error);
+    return [];
+  }
+}
+
+export async function deleteInspectionImage(
+  token: string,
+  inspectionId: string,
+  imageId: string,
+): Promise<boolean> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/inspections/${inspectionId}/images/${imageId}`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    return response.ok;
+  } catch (error) {
+    console.error("Failed to delete inspection image:", error);
+    return false;
+  }
+}

@@ -25,14 +25,7 @@ interface EvidenceViewerModalProps {
   initialIndex?: number;
 }
 
-const defaultImages: EvidenceImage[] = [
-  { src: "/images/sample/front_package.jpg", label: "Front Package" },
-  {
-    src: "/images/sample/back_declarations.jpg",
-    label: "Back Declarations",
-  },
-  { src: "/images/sample/barcode_mrp.jpg", label: "Barcode & MRP" },
-];
+const defaultImages: EvidenceImage[] = [];
 
 export default function EvidenceViewerModal({
   isOpen,
@@ -153,33 +146,21 @@ export default function EvidenceViewerModal({
                     transformOrigin: "center center",
                   }}
                 >
-                  <Image
-                    src={currentImage.src}
-                    alt={currentImage.label}
-                    width={800}
-                    height={600}
-                    className="object-contain max-w-full max-h-[60vh]"
-                    priority
-                  />
-
-                  {/* Bounding box overlay for first image */}
-                  {currentIndex === 0 && (
-                    <div
-                      className="absolute animate-box-pulse"
-                      style={{
-                        left: "18%",
-                        top: "52%",
-                        width: "38%",
-                        height: "30%",
-                        border: "2px solid rgba(239, 68, 68, 0.7)",
-                        backgroundColor: "rgba(239, 68, 68, 0.08)",
-                        borderRadius: "3px",
-                      }}
-                    >
-                      <div className="absolute -top-5 left-0 px-2 py-0.5 bg-red-600 text-white text-[10px] font-semibold rounded shadow-sm">
-                        Label Region
-                      </div>
-                    </div>
+                  {currentImage.src.startsWith("http") ? (
+                    <img
+                      src={currentImage.src}
+                      alt={currentImage.label}
+                      className="object-contain max-w-full max-h-[60vh]"
+                    />
+                  ) : (
+                    <Image
+                      src={currentImage.src}
+                      alt={currentImage.label}
+                      width={800}
+                      height={600}
+                      className="object-contain max-w-full max-h-[60vh]"
+                      priority
+                    />
                   )}
                 </div>
               )}
@@ -235,6 +216,7 @@ export default function EvidenceViewerModal({
                       fill
                       className="object-cover"
                       sizes="56px"
+                      unoptimized={img.src.startsWith("http")}
                     />
                   </button>
                 ))}

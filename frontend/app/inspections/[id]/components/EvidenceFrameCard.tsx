@@ -2,58 +2,30 @@
 
 import React, { useState, useRef, useCallback } from "react";
 import Image from "next/image";
-import { ZoomIn, ZoomOut, RotateCcw, Eye, Maximize2 } from "lucide-react";
+import { ZoomIn, ZoomOut, RotateCcw, Eye, Maximize2, ChevronLeft, ChevronRight, ImageOff } from "lucide-react";
 import { motion } from "framer-motion";
-
-interface BoundingBox {
-  id: string;
-  label: string;
-  x: number; // percentage
-  y: number; // percentage
-  width: number; // percentage
-  height: number; // percentage
-  color?: string;
-}
 
 interface EvidenceFrameCardProps {
   imageSrc?: string;
   imageAlt?: string;
-  boundingBoxes?: BoundingBox[];
+  images?: { src: string; label: string }[];
+  currentIndex?: number;
+  onNavigate?: (index: number) => void;
   onViewEvidence?: () => void;
 }
 
-const defaultBoundingBoxes: BoundingBox[] = [
-  {
-    id: "bb-1",
-    label: "Label Region",
-    x: 18,
-    y: 52,
-    width: 38,
-    height: 30,
-    color: "rgba(239, 68, 68, 0.7)",
-  },
-  {
-    id: "bb-2",
-    label: "Product Name",
-    x: 25,
-    y: 35,
-    width: 28,
-    height: 10,
-    color: "rgba(239, 68, 68, 0.5)",
-  },
-];
-
 export default function EvidenceFrameCard({
-  imageSrc = "/images/sample/front_package.jpg",
-  imageAlt = "Tata Salt - Front Package",
-  boundingBoxes = defaultBoundingBoxes,
+  imageSrc,
+  imageAlt = "Product Image",
+  images = [],
+  currentIndex = 0,
+  onNavigate,
   onViewEvidence,
 }: EvidenceFrameCardProps) {
   const [zoom, setZoom] = useState(1);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
-  const [hoveredBox, setHoveredBox] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const handleZoomIn = useCallback(() => {
@@ -161,56 +133,29 @@ export default function EvidenceFrameCard({
         >
           {/* Product Image */}
           <div className="relative w-full h-full min-h-[340px]">
-            <Image
-              src={imageSrc}
-              alt={imageAlt}
-              fill
-              className="object-contain pointer-events-none"
-              sizes="(max-width: 768px) 100vw, 50vw"
-              priority
-            />
-
-            {/* Bounding Box Overlays */}
-            {boundingBoxes.map((box) => (
-              <div
-                key={box.id}
-                className="absolute transition-all duration-300 ease-out"
-                style={{
-                  left: `${box.x}%`,
-                  top: `${box.y}%`,
-                  width: `${box.width}%`,
-                  height: `${box.height}%`,
-                  border: `2px solid ${box.color || "rgba(239, 68, 68, 0.7)"}`,
-                  backgroundColor:
-                    hoveredBox === box.id
-                      ? "rgba(239, 68, 68, 0.15)"
-                      : "rgba(239, 68, 68, 0.06)",
-                  borderRadius: "3px",
-                  boxShadow:
-                    hoveredBox === box.id
-                      ? "0 0 12px rgba(239, 68, 68, 0.3)"
-                      : "none",
-                }}
-                onMouseEnter={() => setHoveredBox(box.id)}
-                onMouseLeave={() => setHoveredBox(null)}
-              >
-                {/* Bounding box label */}
-                {hoveredBox === box.id && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="absolute -top-6 left-0 px-2 py-0.5 bg-red-600 text-white text-[10px] font-semibold rounded shadow-sm whitespace-nowrap z-10"
-                  >
-                    {box.label}
-                  </motion.div>
-                )}
-                {/* Corner markers */}
-                <div className="absolute -top-[3px] -left-[3px] w-2 h-2 border-t-2 border-l-2 border-red-500 rounded-tl-sm" />
-                <div className="absolute -top-[3px] -right-[3px] w-2 h-2 border-t-2 border-r-2 border-red-500 rounded-tr-sm" />
-                <div className="absolute -bottom-[3px] -left-[3px] w-2 h-2 border-b-2 border-l-2 border-red-500 rounded-bl-sm" />
-                <div className="absolute -bottom-[3px] -right-[3px] w-2 h-2 border-b-2 border-r-2 border-red-500 rounded-br-sm" />
+            {imageSrc ? (
+              imageSrc.startsWith("http") ? (
+                <img
+                  src={imageSrc}
+                  alt={imageAlt}
+                  className="absolute inset-0 w-full h-full object-contain pointer-events-none"
+                />
+              ) : (
+                <Image
+                  src={imageSrc}
+                  alt={imageAlt}
+                  fill
+                  className="object-contain pointer-events-none"
+                  sizes="(max-width: 768px) 100vw, 50vw"
+                  priority
+                />
+              )
+            ) : (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+                <ImageOff className="w-12 h-12 text-slate-300" />
+                <span className="text-xs font-medium text-slate-400">No image uploaded</span>
               </div>
-            ))}
+            )}
           </div>
         </div>
 
@@ -224,6 +169,30 @@ export default function EvidenceFrameCard({
             <Maximize2 className="w-3 h-3 inline mr-1 -mt-0.5" />
             {Math.round(zoom * 100)}%
           </motion.div>
+        )}
+
+        {/* Navigation Arrows */}
+        {images.length > 1 && onNavigate && (
+          <>
+            <button
+              onClick={() => onNavigate(currentIndex > 0 ? currentIndex - 1 : images.length - 1)}
+              className="absolute left-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/90 text-slate-700 hover:bg-white hover:shadow-lg transition-all cursor-pointer z-10"
+              aria-label="Previous image"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => onNavigate(currentIndex < images.length - 1 ? currentIndex + 1 : 0)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/90 text-slate-700 hover:bg-white hover:shadow-lg transition-all cursor-pointer z-10"
+              aria-label="Next image"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+            {/* Image Counter */}
+            <div className="absolute bottom-3 right-3 px-2.5 py-1 rounded-md bg-slate-900/70 text-white text-[10px] font-semibold backdrop-blur-sm">
+              {currentIndex + 1} / {images.length}
+            </div>
+          </>
         )}
       </div>
 
