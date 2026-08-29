@@ -99,3 +99,68 @@ export async function fetchAuthMe(token: string): Promise<AuthMeResponse | null>
     return null;
   }
 }
+
+// ---- Profile API ----
+
+export interface ProfileData {
+  id: string;
+  name: string;
+  role: string;
+  email: string;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface ProfileUpdatePayload {
+  name?: string;
+}
+
+export async function fetchProfile(token: string): Promise<ProfileData | null> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/profile`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error ${response.status}`);
+    }
+
+    return (await response.json()) as ProfileData;
+  } catch (error) {
+    console.error("Failed to fetch profile:", error);
+    return null;
+  }
+}
+
+export async function updateProfile(
+  token: string,
+  payload: ProfileUpdatePayload,
+): Promise<ProfileData | null> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/profile`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => null);
+      const message =
+        errorBody?.detail || `Failed to update profile (HTTP ${response.status})`;
+      throw new Error(message);
+    }
+
+    return (await response.json()) as ProfileData;
+  } catch (error) {
+    console.error("Failed to update profile:", error);
+    throw error;
+  }
+}
