@@ -1,166 +1,218 @@
 # ParakhAI (Legal Metrology Compliance Engine)
 
-> **SIH 2026 Hackathon Project | Problem Statement ID: 26034**  
-> **Organization:** Ministry of Consumer Affairs, Food & Public Distribution  
-> **Department:** Department of Consumer Affairs (DoCA)  
-> **Theme:** Agriculture, FoodTech & Rural Development  
+> **SIH 2026 Hackathon Project | Problem Statement ID: 26034**
+> **Organization:** Ministry of Consumer Affairs, Food & Public Distribution
+> **Department:** Department of Consumer Affairs (DoCA)
+> **Theme:** Agriculture, FoodTech & Rural Development
 
 ---
 
-## 📌 Project Overview
+## Project Overview
 
-**ParakhAI** is an AI-powered software system designed to automate the compliance verification of packaged commodities under the **Legal Metrology (Packaged Commodities) Rules, 2011**. 
+**ParakhAI** is an AI-powered software system designed to automate the compliance verification of packaged commodities under the **Legal Metrology (Packaged Commodities) Rules, 2011**.
 
 The system enables enforcement officials and inspectors to upload product packaging images, extract mandatory declarations using Computer Vision & OCR, validate declarations against structured rule engines, identify non-compliance/violations, store evidence, and generate comprehensive digital inspection reports.
 
 ---
 
-## ✨ Key Features Implemented So Far
+## Project Structure
 
-### 🎨 Frontend (Next.js 15 App Router + Tailwind CSS)
-- **App Shell & Layout**: Responsive layout with collapsible sidebar, top navigation bar, quick actions, breadcrumb navigation, and dark/light theme switcher.
-- **Authentication Portal (`/auth`)**: Role-based login interface for enforcement officials and administrators.
-- **Executive Dashboard (`/dashboard`)**: Compliance metrics, active violations breakdown, recent inspection history, and system health status.
-- **Inspections Management (`/inspections`)**: New inspection upload workflow, image dropzone, inspection list view with status tags, and detail view modal.
-- **Reports Module (`/reports`)**: Filterable inspection report list with PDF/Editable document export options.
-- **Settings & Rule Engine Config (`/settings`)**: Rule parameter adjustments, threshold settings, and user permission configurations.
-- **Help & Rules Reference (`/help`)**: In-app documentation on Legal Metrology guidelines and user manual.
-- **Backend API Integration**: Integrated API client (`lib/api.ts`) for health check and backend communication.
-
-### ⚙️ Backend (FastAPI + Python)
-- **FastAPI Core Setup**: Structured app directory (`app/api`, `app/core`, `app/models`, `app/schemas`, `app/services`).
-- **Configuration & Environment**: Modular configuration using `pydantic-settings` supporting local `.env` setup.
-- **CORS Handling**: Configured middleware allowing cross-origin requests from the Next.js frontend.
-- **Health Check Endpoint**: `/health` API returning server operational status, service metadata, and version.
-
----
-
-## 🏗️ Project Architecture & Tech Stack
-
-```text
+```
 LM-CE (ParakhAI)/
-├── backend/            # FastAPI Python Backend
+├── backend/                    # FastAPI Python Backend
 │   ├── app/
-│   │   ├── api/        # REST API endpoints & routes
-│   │   ├── core/       # App configuration & environment settings
-│   │   ├── models/     # Database models (SQLAlchemy / ORM)
-│   │   ├── schemas/    # Pydantic validation schemas
-│   │   ├── services/   # Business logic, OCR, & Rule Engine core
-│   │   └── main.py     # FastAPI application entry point
-│   ├── .env.example    # Backend environment template
-│   └── requirements.txt
-└── frontend/           # Next.js Frontend App
-    ├── app/            # App Router pages (auth, dashboard, inspections, etc.)
-    ├── components/     # AppShell, Sidebar, Header, UI components
-    ├── lib/            # Utility functions & API integration
-    ├── PRD.md          # Detailed Product Requirements Document
-    ├── .env.example    # Frontend environment template
+│   │   ├── api/                # REST API endpoints (health, auth, products, inspections)
+│   │   ├── core/               # Config, Supabase client, JWT auth dependency
+│   │   ├── models/             # Database models
+│   │   ├── schemas/            # Pydantic validation schemas
+│   │   ├── services/           # Business logic, OCR, Rule Engine
+│   │   └── main.py             # FastAPI app entry point
+│   ├── supabase/migrations/    # SQL schema migrations
+│   ├── requirements.txt
+│   └── .env                    # Environment variables (not committed)
+└── frontend/                   # Next.js Frontend App
+    ├── app/                    # App Router pages
+    │   ├── auth/               # Login/signup
+    │   ├── dashboard/          # Executive dashboard
+    │   ├── inspections/        # Inspection CRUD + image upload + detail view
+    │   ├── reports/            # Report generation & listing
+    │   ├── settings/           # Rule engine config
+    │   └── help/               # In-app documentation
+    ├── components/layout/      # AppShell, Sidebar, Header
+    ├── context/                # AuthContext (Supabase JWT)
+    ├── lib/                    # API client, Supabase clients
     └── package.json
 ```
 
-### Stack Summary
-- **Frontend**: Next.js 15, React 19, TypeScript, Tailwind CSS v4, Lucide Icons
-- **Backend**: Python 3.10+, FastAPI, Uvicorn, Pydantic v2
-- **Version Control**: Git (`https://github.com/aryandas2911/ParakhAI.git`)
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Frontend | Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4 |
+| Backend | Python 3.12+, FastAPI, Uvicorn |
+| Database | Supabase (PostgreSQL) with Row Level Security |
+| Storage | Supabase Storage (inspection images) |
+| Auth | Supabase Auth (JWT Bearer tokens) |
+| Version Control | Git |
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
-- **Node.js**: v18.x or higher
-- **Python**: v3.10 or higher
-- **npm** / **yarn** / **pnpm**
+
+- Node.js v18+
+- Python 3.10+
+- A [Supabase](https://supabase.com) project
+
+### 1. Backend Setup
+
+```bash
+cd backend
+python -m venv venv
+.\venv\Scripts\activate        # Windows
+# source venv/bin/activate     # macOS/Linux
+pip install -r requirements.txt
+```
+
+Create `backend/.env`:
+
+```env
+SUPABASE_URL=https://<your-project-id>.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=<your-service-role-key>
+```
+
+> The service role key bypasses RLS. Never expose it client-side.
+
+Run the server:
+
+```bash
+uvicorn app.main:app --reload --port 8000
+```
+
+- API docs: `http://localhost:8000/docs`
+- Health check: `http://localhost:8000/health`
+
+### 2. Frontend Setup
+
+```bash
+cd frontend
+npm install
+```
+
+Create `frontend/.env.local`:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://<your-project-id>.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-anon-key>
+```
+
+Run the dev server:
+
+```bash
+npm run dev
+```
+
+- App: `http://localhost:3000`
+
+### 3. Database Setup
+
+Apply the SQL migrations from `backend/supabase/migrations/` to your Supabase SQL Editor:
+
+1. `001_initial_schema.sql` - Tables, indexes, triggers, RLS policies
+2. `002_profiles_rls_policies.sql` - Profile-level RLS policies
+
+The `inspection-images` storage bucket is auto-created on first API call.
 
 ---
 
-### 1. Setting Up the Backend (FastAPI)
+## API Endpoints
 
-1. Navigate to the `backend` directory:
-   ```bash
-   cd backend
-   ```
+### Health
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/health` | Server status |
+| GET | `/health/db` | Database connectivity |
+| GET | `/health/schema` | Schema validation |
 
-2. Create and activate a Python virtual environment:
-   ```bash
-   # On Windows
-   python -m venv venv
-   .\venv\Scripts\activate
+### Auth
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/me` | Current authenticated user |
 
-   # On macOS/Linux
-   python3 -m venv venv
-   source venv/bin/activate
-   ```
+### Profile
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/profile` | Get current user profile |
+| PATCH | `/api/profile` | Update profile |
 
-3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+### Products
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/products` | Create a product |
+| GET | `/api/products` | List all products |
+| GET | `/api/products/{id}` | Get product by ID |
+| PATCH | `/api/products/{id}` | Update product |
 
-4. Create and configure environment file:
-   ```bash
-   cp .env.example .env
-   ```
-   Open `backend/.env` and update the Supabase environment variables with your project credentials:
-   ```env
-   SUPABASE_URL=https://<your-project-id>.supabase.co
-   SUPABASE_SERVICE_ROLE_KEY=<your-supabase-service-role-key>
-   ```
-   > ⚠️ **Security Note:** Keep `SUPABASE_SERVICE_ROLE_KEY` strictly inside the backend `.env` file and never commit it to source control.
-
-5. Start the FastAPI development server:
-   ```bash
-   uvicorn app.main:app --reload --port 8000
-   ```
-   The backend API will be running at `http://localhost:8000`.  
-   Interactive API documentation (Swagger UI) is available at `http://localhost:8000/docs`.  
-   Check database connectivity at `http://localhost:8000/health/db`.
+### Inspections
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/inspections` | Create inspection (requires product_id) |
+| GET | `/api/inspections` | List user's inspections |
+| GET | `/api/inspections/{id}` | Get inspection detail |
+| POST | `/api/inspections/{id}/images` | Upload image (multipart/form-data) |
+| GET | `/api/inspections/{id}/images` | List images (returns signed URLs) |
+| DELETE | `/api/inspections/{id}/images/{image_id}` | Delete image (Storage + DB) |
 
 ---
 
-### 2. Setting Up the Frontend (Next.js)
+## Database Schema
 
-1. Open a new terminal and navigate to the `frontend` directory:
-   ```bash
-   cd frontend
-   ```
+| Table | Purpose |
+|-------|---------|
+| `profiles` | User profiles (linked to Supabase Auth) |
+| `products` | Product catalog |
+| `inspections` | Inspection records (links product + inspector) |
+| `inspection_images` | Uploaded images (stores signed URLs) |
+| `declarations` | Extracted label declarations |
+| `violations` | Detected compliance violations |
+| `evidence` | Evidence linking violations to images |
+| `reports` | Generated compliance reports |
+| `compliance_rules` | Configurable rule engine definitions |
 
-2. Install Node modules:
-   ```bash
-   npm install
-   ```
-
-3. Create and configure environment file:
-   ```bash
-   cp .env.example .env.local
-   ```
-   Open `frontend/.env.local` and set your public Supabase project credentials:
-   ```env
-   NEXT_PUBLIC_SUPABASE_URL=https://<your-project-id>.supabase.co
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-supabase-anon-key>
-   ```
-
-4. Start the Next.js development server:
-   ```bash
-   npm run dev
-   ```
-   The application will be accessible at `http://localhost:3000`.
-
+All tables have RLS enabled. Ownership is enforced at the API level via JWT Bearer tokens.
 
 ---
 
-## 📋 Roadmap & Next Steps
+## Key Features
 
-- [x] Initial UI App Shell and Page Router structure
-- [x] Base FastAPI project structure and health monitoring
-- [ ] Image preprocessing & OCR pipeline integration (PaddleOCR / Tesseract / OpenCV)
-- [ ] Legal Metrology rule engine parser implementation
-- [ ] Database schema setup (PostgreSQL / SQLite) for inspection persistence
-- [ ] PDF compliance report generator
-- [ ] Role-based access control (RBAC) authentication
+- **Authentication**: Supabase Auth with JWT Bearer tokens, role-based profiles
+- **Product Management**: CRUD for product catalog
+- **Inspection Workflow**: Create inspection -> Upload images -> View detail
+- **Image Upload**: JPEG/PNG only, 10MB limit, signed URLs with 10-year expiry
+- **Image Navigation**: Prev/next arrows in evidence frame, thumbnail strip in modal
+- **Ownership Enforcement**: Users can only access/modify their own inspections and images
+- **Signed URLs**: Images stored in Supabase Storage, accessed via long-lived signed URLs
 
 ---
 
-## 📄 License & Attribution
+## Roadmap
+
+- [x] App Shell, Layout, and Page Router
+- [x] Authentication (Supabase Auth)
+- [x] Product Management
+- [x] Inspection CRUD with image upload
+- [x] Signed URL generation for image access
+- [x] Ownership-based access control
+- [ ] OCR pipeline integration (PaddleOCR / Tesseract)
+- [ ] Legal Metrology rule engine
+- [ ] Compliance report PDF generation
+- [ ] Role-based access control (RBAC) enforcement
+
+---
+
+## License
 
 Developed for **Smart India Hackathon (SIH) 2026** under the **Department of Consumer Affairs (DoCA)** problem statement.
