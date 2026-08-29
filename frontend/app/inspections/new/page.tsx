@@ -4,7 +4,7 @@ import React, { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import AppShell from "@/components/layout/AppShell";
 import { useAuth } from "@/context/AuthContext";
-import { createProduct } from "@/lib/api";
+import { createProduct, createInspection } from "@/lib/api";
 import InspectionDetailsCard from "./components/InspectionDetailsCard";
 import ImageCaptureZone from "./components/ImageCaptureZone";
 import ProductImagesGallery, {
@@ -100,10 +100,20 @@ export default function NewInspectionPage() {
         return;
       }
 
-      // Navigate to the inspection detail page with the real product_id
-      router.push(`/inspections/${product.product_id}`);
-    } catch {
-      setFormError("An error occurred while creating the product. Please try again.");
+      const inspection = await createInspection(session.access_token, {
+        product_id: product.product_id,
+      });
+
+      if (!inspection) {
+        setFormError("Failed to create inspection. Please try again.");
+        setIsAnalyzing(false);
+        return;
+      }
+
+      router.push(`/inspections/${inspection.inspection_id}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "An error occurred while creating the inspection. Please try again.";
+      setFormError(message);
       setIsAnalyzing(false);
     }
   };

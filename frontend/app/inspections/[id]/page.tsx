@@ -1,10 +1,12 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import { FileText, ArrowRight } from "lucide-react";
+import React, { useState, useCallback, useEffect } from "react";
+import { useRouter, useParams } from "next/navigation";
+import { FileText, ArrowRight, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import AppShell from "@/components/layout/AppShell";
+import { useAuth } from "@/context/AuthContext";
+import { fetchInspectionById, type InspectionData } from "@/lib/api";
 import ComplianceHeader from "./components/ComplianceHeader";
 import EvidenceFrameCard from "./components/EvidenceFrameCard";
 import DeclarationAnalysisTable, {
@@ -17,6 +19,13 @@ import EditDeclarationModal from "./components/EditDeclarationModal";
 
 export default function ComplianceAnalysisPage() {
   const router = useRouter();
+  const params = useParams();
+  const { session } = useAuth();
+  const inspectionId = params.id as string;
+
+  const [inspection, setInspection] = useState<InspectionData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Evidence Viewer Modal state
   const [evidenceModalOpen, setEvidenceModalOpen] = useState(false);
@@ -28,50 +37,26 @@ export default function ComplianceAnalysisPage() {
     useState<DeclarationRow | null>(null);
 
   // Declaration data state (mutable by officer edits)
-  const [declarations, setDeclarations] = useState<DeclarationRow[]>([
-    {
-      id: "dec-1",
-      field: "Product Name",
-      extractedValue: "Tata Salt",
-      status: "verified",
-      confidence: 98,
-    },
-    {
-      id: "dec-2",
-      field: "MRP",
-      extractedValue: "₹30",
-      status: "verified",
-      confidence: 85,
-    },
-    {
-      id: "dec-3",
-      field: "Net Quantity",
-      extractedValue: "1 kg",
-      status: "verified",
-      confidence: 96,
-    },
-    {
-      id: "dec-4",
-      field: "Manufacturer",
-      extractedValue: "ABC Foods",
-      status: "verified",
-      confidence: 94,
-    },
-    {
-      id: "dec-5",
-      field: "Date",
-      extractedValue: "July 2026",
-      status: "verified",
-      confidence: 92,
-    },
-    {
-      id: "dec-6",
-      field: "Consumer Care",
-      extractedValue: "Not detected",
-      status: "not_detected",
-      confidence: 40,
-    },
-  ]);
+  const [declarations, setDeclarations] = useState<DeclarationRow[]>([]);
+
+  // Fetch inspection data
+  useEffect(() => {
+    if (!session?.access_token || !inspectionId) return;
+
+    const load = async () => {
+      setLoading(true);
+      setError(null);
+      const data = await fetchInspectionById(session.access_token, inspectionId);
+      if (!data) {
+        setError("Inspection not found or you are not authorized to view it.");
+      } else {
+        setInspection(data);
+      }
+      setLoading(false);
+    };
+
+    load();
+  }, [session?.access_token, inspectionId]);
 
   // Open evidence viewer
   const handleViewEvidence = useCallback((initialIndex?: number) => {
@@ -95,29 +80,57 @@ export default function ComplianceAnalysisPage() {
   // Handle findings evidence click
   const handleFindingEvidence = useCallback(
     (findingId: string) => {
-      // Map findings to relevant image index for evidence viewer
       const indexMap: Record<string, number> = {
-        "finding-1": 1, // Back declarations for consumer care
-        "finding-2": 2, // Barcode & MRP for MRP format
+        "finding-1": 1,
+        "finding-2": 2,
       };
       handleViewEvidence(indexMap[findingId] ?? 0);
     },
     [handleViewEvidence]
   );
 
-  // Generate report (route to generated inspection report view)
+  // Generate report
   const handleGenerateReport = useCallback(() => {
     router.push("/reports/RPT-LM-CE-2026-0042");
   }, [router]);
+
+  // Loading state
+  if (loading) {
+    return (
+      <AppShell title="Legal Metrology - Compliance Engine">
+        <div className="flex items-center justify-center py-24">
+          <Loader2 className="w-6 h-6 text-slate-400 animate-spin" />
+          <span className="ml-2 text-sm text-slate-500">Loading inspection...</span>
+        </div>
+      </AppShell>
+    );
+  }
+
+  // Error state
+  if (error || !inspection) {
+    return (
+      <AppShell title="Legal Metrology - Compliance Engine">
+        <div className="rounded-xl bg-white shadow-xs border border-slate-100/90 px-5 py-16 text-center">
+          <p className="text-sm font-semibold text-slate-600">{error || "Inspection not found."}</p>
+          <button
+            onClick={() => router.push("/inspections")}
+            className="inline-flex items-center gap-2 mt-4 px-5 py-2.5 rounded-lg bg-[#20638b] text-white text-sm font-semibold shadow-sm hover:bg-[#184f70] transition-colors"
+          >
+            Back to Inspections
+          </button>
+        </div>
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell title="Legal Metrology - Compliance Engine">
       {/* Page Header & Alert Banner */}
       <ComplianceHeader
-        inspectionId="LM-2026-00042"
-        productName="Tata Salt"
-        category="Packaged Food"
-        violationCount={3}
+        inspectionId={inspection.inspection_id}
+        productName={inspection.product_name || "Untitled Product"}
+        category={inspection.category || "N/A"}
+        violationCount={0}
       />
 
       {/* Main Content: Evidence Frame (Left) + Analysis (Right) */}
@@ -126,7 +139,7 @@ export default function ComplianceAnalysisPage() {
         <div className="lg:col-span-5 flex flex-col">
           <EvidenceFrameCard
             imageSrc="/images/sample/front_package.jpg"
-            imageAlt="Tata Salt - Front Package"
+            imageAlt={`${inspection.product_name || "Product"} - Front Package`}
             onViewEvidence={() => handleViewEvidence(0)}
           />
         </div>

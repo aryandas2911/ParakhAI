@@ -297,3 +297,99 @@ export async function updateProduct(
     throw error;
   }
 }
+
+// ---- Inspections API ----
+
+export interface InspectionData {
+  inspection_id: string;
+  product_id: string;
+  inspector_id: string;
+  inspection_date: string;
+  compliance_status: string;
+  compliance_score: number | null;
+  created_at: string;
+  updated_at: string;
+  product_name: string | null;
+  category: string | null;
+}
+
+export interface InspectionCreatePayload {
+  product_id: string;
+}
+
+export async function createInspection(
+  token: string,
+  payload: InspectionCreatePayload,
+): Promise<InspectionData | null> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/inspections`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => null);
+      const message =
+        errorBody?.detail || `Failed to create inspection (HTTP ${response.status})`;
+      throw new Error(message);
+    }
+
+    return (await response.json()) as InspectionData;
+  } catch (error) {
+    console.error("Failed to create inspection:", error);
+    throw error;
+  }
+}
+
+export async function fetchInspections(
+  token: string,
+): Promise<InspectionData[]> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/inspections`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error ${response.status}`);
+    }
+
+    return (await response.json()) as InspectionData[];
+  } catch (error) {
+    console.error("Failed to fetch inspections:", error);
+    return [];
+  }
+}
+
+export async function fetchInspectionById(
+  token: string,
+  inspectionId: string,
+): Promise<InspectionData | null> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/inspections/${inspectionId}`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error ${response.status}`);
+    }
+
+    return (await response.json()) as InspectionData;
+  } catch (error) {
+    console.error("Failed to fetch inspection:", error);
+    return null;
+  }
+}

@@ -1,10 +1,14 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+import logging
 from app.core.config import settings
 from app.api.health import router as health_router
 from app.api.auth import router as auth_router
 from app.api.profile import router as profile_router
 from app.api.products import router as products_router
+from app.api.inspections import router as inspections_router
+
+logging.basicConfig(level=logging.INFO)
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -25,6 +29,7 @@ app.include_router(health_router)
 app.include_router(auth_router)
 app.include_router(profile_router)
 app.include_router(products_router)
+app.include_router(inspections_router)
 
 
 
