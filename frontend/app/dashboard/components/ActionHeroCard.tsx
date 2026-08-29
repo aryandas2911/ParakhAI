@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Plus, ShieldCheck, Sparkles } from "lucide-react";
+import { Plus } from "lucide-react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 
@@ -13,7 +13,6 @@ export default function ActionHeroCard() {
       transition={{ duration: 0.4 }}
       className="relative overflow-hidden rounded-xl bg-white p-6 sm:p-7 shadow-xs border border-slate-100/80"
     >
-
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
         <div className="max-w-2xl">
           <p className="text-sm sm:text-base font-normal text-slate-700 leading-relaxed">

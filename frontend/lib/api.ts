@@ -43,7 +43,6 @@ export async function checkDatabaseHealth(): Promise<DbHealthStatusResponse | nu
   }
 }
 
-
 export interface SchemaHealthStatusResponse {
   status: string;
   database: string;
@@ -67,4 +66,36 @@ export async function checkSchemaHealth(): Promise<SchemaHealthStatusResponse | 
   }
 }
 
+export interface AuthMeResponse {
+  status: string;
+  user: {
+    user_id: string;
+    email: string;
+    name: string;
+    role: string;
+    created_at: string;
+  };
+}
 
+export async function fetchAuthMe(token: string): Promise<AuthMeResponse | null> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error ${response.status}`);
+    }
+
+    const data = (await response.json()) as AuthMeResponse;
+    return data;
+  } catch (error) {
+    console.error("Failed to fetch /api/auth/me from FastAPI backend:", error);
+    return null;
+  }
+}

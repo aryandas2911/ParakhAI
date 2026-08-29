@@ -1,6 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 import Sidebar from "./Sidebar";
 import TopHeader from "./TopHeader";
 
@@ -13,7 +15,30 @@ export default function AppShell({
   children,
   title = "Legal Metrology - Compliance Engine",
 }: AppShellProps) {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { user, loading } = useAuth();
+  const router = useRouter();
+  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push("/auth");
+    }
+  }, [user, loading, router]);
+
+  if (loading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-[#f8fafc]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#20638b] border-t-transparent" />
+          <p className="text-xs font-semibold text-slate-500">Verifying Session...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
 
   return (
     <div className="flex min-h-screen w-full bg-[#f8fafc]">

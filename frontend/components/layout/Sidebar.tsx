@@ -13,11 +13,16 @@ import {
   X,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { useAuth } from "@/context/AuthContext";
+
 
 interface SidebarProps {
   isOpen?: boolean;
   onClose?: () => void;
 }
+
+// navItems defined below...
+
 
 const navItems = [
   {
@@ -50,11 +55,13 @@ const navItems = [
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const { signOut } = useAuth();
 
-  const handleLogout = () => {
-    // Navigate to auth/login page
+  const handleLogout = async () => {
+    await signOut();
     router.push("/auth");
   };
+
 
   const content = (
     <div className="flex flex-col h-full bg-white border-r border-slate-100 select-none">

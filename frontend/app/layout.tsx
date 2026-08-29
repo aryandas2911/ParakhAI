@@ -19,13 +19,18 @@ export const metadata: Metadata = {
     "Automated inspection and compliance verification of packaged commodities against the Legal Metrology (Packaged Commodities) Rules, 2011. Upload, scan, validate, and generate digital compliance reports.",
 };
 
+import { AuthProvider } from "@/context/AuthContext";
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
       className={`${inter.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <AuthProvider>{children}</AuthProvider>
+      </body>
     </html>
   );
 }
+

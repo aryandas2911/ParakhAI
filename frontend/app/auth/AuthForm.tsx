@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabaseClient";
 
 type AuthTab = "signin" | "signup";
 
@@ -29,14 +30,90 @@ export default function AuthForm() {
     }
   }, [activeTab]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    // Simulate API call and redirect to dashboard
-    setTimeout(() => {
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
+    try {
+      if (activeTab === "signup") {
+        if (!fullName.trim()) {
+          setErrorMessage("Please enter your full name.");
+          setIsSubmitting(false);
+          return;
+        }
+
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              name: fullName,
+            },
+          },
+        });
+
+        if (error) {
+          setErrorMessage(error.message);
+          setIsSubmitting(false);
+          return;
+        }
+
+        if (data.user) {
+          // Create profile record in public.profiles table
+          const { error: profileError } = await supabase.from("profiles").insert([
+            {
+              id: data.user.id,
+              name: fullName,
+              role: "inspector",
+            },
+          ]);
+
+          if (profileError) {
+            console.error("Error creating profile:", profileError);
+          }
+
+          if (data.session) {
+            setSuccessMessage("Account created successfully! Redirecting...");
+            setTimeout(() => {
+              router.push("/dashboard");
+            }, 800);
+          } else {
+            setSuccessMessage("Account created! Please check your email to confirm registration or sign in.");
+            setIsSubmitting(false);
+          }
+        }
+      } else {
+        // Sign In
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (error) {
+          setErrorMessage(error.message);
+          setIsSubmitting(false);
+          return;
+        }
+
+        if (data.session) {
+          setSuccessMessage("Signed in successfully! Redirecting...");
+          setTimeout(() => {
+            router.push("/dashboard");
+          }, 600);
+        }
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message || "An unexpected error occurred.");
       setIsSubmitting(false);
-      router.push("/dashboard");
-    }, 600);
+    }
   };
 
   return (
@@ -65,6 +142,8 @@ export default function AuthForm() {
                 onClick={() => {
                   setActiveTab("signin");
                   setShowPassword(false);
+                  setErrorMessage(null);
+                  setSuccessMessage(null);
                 }}
                 className={`flex-1 py-3 text-sm font-semibold transition-colors duration-200 cursor-pointer ${
                   activeTab === "signin"
@@ -81,6 +160,8 @@ export default function AuthForm() {
                 onClick={() => {
                   setActiveTab("signup");
                   setShowPassword(false);
+                  setErrorMessage(null);
+                  setSuccessMessage(null);
                 }}
                 className={`flex-1 py-3 text-sm font-semibold transition-colors duration-200 cursor-pointer ${
                   activeTab === "signup"
@@ -99,6 +180,22 @@ export default function AuthForm() {
               />
             </div>
           </div>
+
+          {/* Error Banner */}
+          {errorMessage && (
+            <div className="mb-3 rounded-lg bg-red-50 p-3 text-xs text-red-700 border border-red-200 flex items-start gap-2">
+              <span className="font-bold flex-shrink-0">⚠️</span>
+              <span>{errorMessage}</span>
+            </div>
+          )}
+
+          {/* Success Banner */}
+          {successMessage && (
+            <div className="mb-3 rounded-lg bg-emerald-50 p-3 text-xs text-emerald-700 border border-emerald-200 flex items-start gap-2">
+              <span className="font-bold flex-shrink-0">✓</span>
+              <span>{successMessage}</span>
+            </div>
+          )}
 
           {/* ── Form Content ── */}
           <form onSubmit={handleSubmit} className="space-y-3">
@@ -129,6 +226,8 @@ export default function AuthForm() {
                   id="fullName"
                   type="text"
                   placeholder="Enter your full name"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
                   required
                   className="auth-input w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder-slate-400 outline-none"
                 />
@@ -147,6 +246,8 @@ export default function AuthForm() {
                 id="email"
                 type="email"
                 placeholder="official@agency.gov"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
                 className="auth-input w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder-slate-400 outline-none"
               />
@@ -169,6 +270,8 @@ export default function AuthForm() {
                       ? "Create a strong password"
                       : "Enter your password"
                   }
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   required
                   className="auth-input w-full rounded-lg border border-slate-200 bg-white px-3 py-2 pr-12 text-sm text-slate-800 placeholder-slate-400 outline-none"
                 />
