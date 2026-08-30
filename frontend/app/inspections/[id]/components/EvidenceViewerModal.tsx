@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import Image from "next/image";
 import {
   X,
@@ -13,9 +13,16 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
+interface OcrBlock {
+  text: string;
+  confidence: number;
+  bounding_box: number[][];
+}
+
 interface EvidenceImage {
   src: string;
   label: string;
+  ocrBlocks?: OcrBlock[];
 }
 
 interface EvidenceViewerModalProps {
@@ -26,6 +33,83 @@ interface EvidenceViewerModalProps {
 }
 
 const defaultImages: EvidenceImage[] = [];
+
+function ImageWithBoxes({
+  src,
+  label,
+  ocrBlocks,
+  zoom,
+}: {
+  src: string;
+  label: string;
+  ocrBlocks?: OcrBlock[];
+  zoom: number;
+}) {
+  const [naturalSize, setNaturalSize] = useState<{ w: number; h: number } | null>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
+
+  const handleLoad = useCallback(() => {
+    if (imgRef.current) {
+      setNaturalSize({
+        w: imgRef.current.naturalWidth,
+        h: imgRef.current.naturalHeight,
+      });
+    }
+  }, []);
+
+  const hasBoxes = ocrBlocks && ocrBlocks.length > 0 && naturalSize;
+
+  return (
+    <div className="relative inline-block">
+      {src.startsWith("http") ? (
+        <img
+          ref={imgRef}
+          src={src}
+          alt={label}
+          className="object-contain max-w-full max-h-[60vh]"
+          onLoad={handleLoad}
+        />
+      ) : (
+        <Image
+          src={src}
+          alt={label}
+          width={800}
+          height={600}
+          className="object-contain max-w-full max-h-[60vh]"
+          priority
+          onLoad={handleLoad}
+        />
+      )}
+
+      {/* OCR Bounding Box Overlay */}
+      {hasBoxes && (
+        <svg
+          className="absolute inset-0 w-full h-full pointer-events-none"
+          viewBox={`0 0 ${naturalSize.w} ${naturalSize.h}`}
+          preserveAspectRatio="xMidYMid meet"
+        >
+          {ocrBlocks.map((block, i) => {
+            if (!block.bounding_box || block.bounding_box.length < 4) return null;
+            const points = block.bounding_box
+              .map((p) => `${p[0]},${p[1]}`)
+              .join(" ");
+            return (
+              <g key={i}>
+                <polygon
+                  points={points}
+                  fill="rgba(32, 99, 139, 0.08)"
+                  stroke="#20638b"
+                  strokeWidth={2 / zoom}
+                  strokeLinejoin="round"
+                />
+              </g>
+            );
+          })}
+        </svg>
+      )}
+    </div>
+  );
+}
 
 export default function EvidenceViewerModal({
   isOpen,
@@ -59,6 +143,7 @@ export default function EvidenceViewerModal({
   }, []);
 
   const currentImage = images[currentIndex];
+  const showBoxes = currentImage?.ocrBlocks && currentImage.ocrBlocks.length > 0;
 
   return (
     <AnimatePresence>
@@ -93,6 +178,11 @@ export default function EvidenceViewerModal({
                 <p className="text-xs text-slate-500 mt-0.5">
                   {currentImage?.label} — Image {currentIndex + 1} of{" "}
                   {images.length}
+                  {showBoxes && (
+                    <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full bg-[#20638b]/10 text-[#20638b] text-[10px] font-bold">
+                      {currentImage!.ocrBlocks!.length} text regions
+                    </span>
+                  )}
                 </p>
               </div>
 
@@ -146,22 +236,12 @@ export default function EvidenceViewerModal({
                     transformOrigin: "center center",
                   }}
                 >
-                  {currentImage.src.startsWith("http") ? (
-                    <img
-                      src={currentImage.src}
-                      alt={currentImage.label}
-                      className="object-contain max-w-full max-h-[60vh]"
-                    />
-                  ) : (
-                    <Image
-                      src={currentImage.src}
-                      alt={currentImage.label}
-                      width={800}
-                      height={600}
-                      className="object-contain max-w-full max-h-[60vh]"
-                      priority
-                    />
-                  )}
+                  <ImageWithBoxes
+                    src={currentImage.src}
+                    label={currentImage.label}
+                    ocrBlocks={currentImage.ocrBlocks}
+                    zoom={zoom}
+                  />
                 </div>
               )}
 

@@ -58,24 +58,6 @@ export default function SupportingEvidencePanel({
               sizes="(max-width: 640px) 100vw, 50vw"
             />
 
-            {/* Red Bounding Box Overlay */}
-            <div
-              className="absolute pointer-events-none"
-              style={{
-                left: "22%",
-                top: "30%",
-                width: "56%",
-                height: "44%",
-                border: "2px solid rgba(239, 68, 68, 0.9)",
-                backgroundColor: "rgba(239, 68, 68, 0.12)",
-                borderRadius: "3px",
-              }}
-            >
-              <span className="absolute -top-5 left-0 px-1.5 py-0.5 bg-red-600 text-white text-[9px] font-bold rounded shadow-xs">
-                ROI — Mandatory Declarations
-              </span>
-            </div>
-
             {/* Hover overlay */}
             <div className="absolute inset-0 bg-slate-900/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
               <span className="inline-flex items-center gap-1 px-3 py-1 rounded-md bg-white/90 text-slate-800 text-xs font-semibold shadow-md">

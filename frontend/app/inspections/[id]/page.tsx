@@ -198,11 +198,15 @@ export default function ComplianceAnalysisPage() {
     [session?.access_token, inspectionId]
   );
 
-  // Map images to EvidenceViewerModal format
-  const evidenceImages = images.map((img) => ({
-    src: img.signed_url,
-    label: img.image_type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
-  }));
+  // Map images to EvidenceViewerModal format, attaching OCR blocks per image
+  const evidenceImages = images.map((img) => {
+    const ocrMatch = ocrImages.find((o) => o.image_id === img.image_id);
+    return {
+      src: img.signed_url,
+      label: img.image_type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+      ocrBlocks: ocrMatch?.blocks,
+    };
+  });
 
   // Primary image for the frame card
   const primaryImage = images.length > 0 ? images[0] : null;
