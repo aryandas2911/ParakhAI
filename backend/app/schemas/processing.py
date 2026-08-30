@@ -18,6 +18,19 @@ class ImageProcessingDetail(BaseModel):
     metadata: dict = {}
 
 
+class OcrBlockDetail(BaseModel):
+    text: str
+    confidence: float
+    bounding_box: list[list[float]]
+
+
+class OcrImageDetail(BaseModel):
+    image_id: str
+    status: str
+    blocks: list[OcrBlockDetail] = []
+    error: Optional[str] = None
+
+
 class ProcessingResponse(BaseModel):
     inspection_id: str
     status: str
@@ -25,4 +38,11 @@ class ProcessingResponse(BaseModel):
     processed_images: int
     failed_images: int
     images: list[ImageProcessingDetail] = []
+    ocr_images: list[OcrImageDetail] = []
     errors: list[str] = []
+
+
+class OcrResultResponse(BaseModel):
+    inspection_id: str
+    total_blocks: int
+    images: list[OcrImageDetail] = []

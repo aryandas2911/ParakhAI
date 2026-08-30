@@ -9,19 +9,20 @@ import { useAuth } from "@/context/AuthContext";
 import {
   fetchInspectionById,
   fetchInspectionImages,
+  fetchInspectionOcr,
   deleteInspectionImage,
   processInspection,
   type InspectionData,
   type InspectionImageData,
   type ProcessingResult,
+  type OcrImageResult,
 } from "@/lib/api";
 import ComplianceHeader from "./components/ComplianceHeader";
 import EvidenceFrameCard from "./components/EvidenceFrameCard";
-import DeclarationAnalysisTable, {
-  type DeclarationRow,
-} from "./components/DeclarationAnalysisTable";
+import DeclarationAnalysisTable from "./components/DeclarationAnalysisTable";
 import VisualChecksCard from "./components/VisualChecksCard";
 import ComplianceFindingsCard from "./components/ComplianceFindingsCard";
+import OcrTextCard from "./components/OcrTextCard";
 import EvidenceViewerModal from "./components/EvidenceViewerModal";
 import EditDeclarationModal from "./components/EditDeclarationModal";
 
@@ -46,10 +47,14 @@ export default function ComplianceAnalysisPage() {
   // Edit Declaration Modal state
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editingDeclaration, setEditingDeclaration] =
-    useState<DeclarationRow | null>(null);
+    useState<{ id: string; field: string; extractedValue: string; status: "verified" | "requires_review" | "not_detected"; confidence: number } | null>(null);
 
-  // Declaration data state (mutable by officer edits)
-  const [declarations, setDeclarations] = useState<DeclarationRow[]>([]);
+  // OCR state
+  const [ocrImages, setOcrImages] = useState<OcrImageResult[]>([]);
+  const [ocrLoading, setOcrLoading] = useState(false);
+
+  // Declaration data state — populated from OCR (empty until extraction step)
+  const [declarations, setDeclarations] = useState<{ id: string; field: string; extractedValue: string; status: "verified" | "requires_review" | "not_detected"; confidence: number }[]>([]);
 
   // Processing state
   const [processing, setProcessing] = useState(false);
@@ -92,6 +97,9 @@ export default function ComplianceAnalysisPage() {
       try {
         const result = await processInspection(session.access_token, inspectionId);
         setProcessingResult(result);
+        if (result.ocr_images) {
+          setOcrImages(result.ocr_images);
+        }
       } catch (err) {
         setProcessingError(err instanceof Error ? err.message : "Auto-processing failed.");
       } finally {
@@ -102,6 +110,23 @@ export default function ComplianceAnalysisPage() {
     autoProcess();
   }, [session?.access_token, inspectionId, loading, images.length]);
 
+  // Fetch stored OCR results on load (if already processed previously)
+  useEffect(() => {
+    if (!session?.access_token || !inspectionId) return;
+    if (loading || hasAutoProcessed.current) return;
+
+    const loadOcr = async () => {
+      setOcrLoading(true);
+      const ocr = await fetchInspectionOcr(session.access_token!, inspectionId);
+      if (ocr && ocr.images.length > 0) {
+        setOcrImages(ocr.images);
+      }
+      setOcrLoading(false);
+    };
+
+    loadOcr();
+  }, [session?.access_token, inspectionId, loading]);
+
   // Open evidence viewer
   const handleViewEvidence = useCallback((initialIndex?: number) => {
     setEvidenceInitialIndex(initialIndex ?? 0);
@@ -109,13 +134,13 @@ export default function ComplianceAnalysisPage() {
   }, []);
 
   // Open edit modal
-  const handleEditRow = useCallback((row: DeclarationRow) => {
+  const handleEditRow = useCallback((row: { id: string; field: string; extractedValue: string; status: "verified" | "requires_review" | "not_detected"; confidence: number }) => {
     setEditingDeclaration(row);
     setEditModalOpen(true);
   }, []);
 
   // Save edited declaration
-  const handleSaveEdit = useCallback((updated: DeclarationRow) => {
+  const handleSaveEdit = useCallback((updated: { id: string; field: string; extractedValue: string; status: "verified" | "requires_review" | "not_detected"; confidence: number }) => {
     setDeclarations((prev) =>
       prev.map((d) => (d.id === updated.id ? updated : d))
     );
@@ -147,6 +172,9 @@ export default function ComplianceAnalysisPage() {
     try {
       const result = await processInspection(session.access_token, inspectionId);
       setProcessingResult(result);
+      if (result.ocr_images) {
+        setOcrImages(result.ocr_images);
+      }
     } catch (err) {
       setProcessingError(err instanceof Error ? err.message : "Processing failed.");
     } finally {
@@ -238,6 +266,10 @@ export default function ComplianceAnalysisPage() {
             declarations={declarations}
             onEditRow={handleEditRow}
           />
+          <OcrTextCard
+            ocrImages={ocrImages}
+            loading={ocrLoading || processing}
+          />
           <VisualChecksCard />
           <ComplianceFindingsCard
             onViewEvidence={handleFindingEvidence}
@@ -303,7 +335,7 @@ export default function ComplianceAnalysisPage() {
           {processing && (
             <div className="flex items-center gap-2 text-sm text-slate-500">
               <Loader2 className="w-4 h-4 animate-spin" />
-              <span>Processing images...</span>
+              <span>Processing &amp; OCR running...</span>
             </div>
           )}
           {processingError && (

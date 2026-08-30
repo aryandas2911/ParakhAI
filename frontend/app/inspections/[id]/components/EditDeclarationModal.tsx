@@ -3,13 +3,20 @@
 import React, { useState } from "react";
 import { X, Save, RotateCcw } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import type { DeclarationRow } from "./DeclarationAnalysisTable";
+
+interface DeclarationData {
+  id: string;
+  field: string;
+  extractedValue: string;
+  status: "verified" | "requires_review" | "not_detected";
+  confidence: number;
+}
 
 interface EditDeclarationModalProps {
   isOpen: boolean;
   onClose: () => void;
-  declaration: DeclarationRow | null;
-  onSave?: (updated: DeclarationRow) => void;
+  declaration: DeclarationData | null;
+  onSave?: (updated: DeclarationData) => void;
 }
 
 export default function EditDeclarationModal({
@@ -21,7 +28,7 @@ export default function EditDeclarationModal({
   const [editedValue, setEditedValue] = useState(
     declaration?.extractedValue ?? ""
   );
-  const [editedStatus, setEditedStatus] = useState<DeclarationRow["status"]>(
+  const [editedStatus, setEditedStatus] = useState<DeclarationData["status"]>(
     declaration?.status ?? "verified"
   );
 

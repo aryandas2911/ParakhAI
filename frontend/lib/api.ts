@@ -523,6 +523,19 @@ export interface ImageProcessingDetail {
   metadata: Record<string, unknown>;
 }
 
+export interface OcrBlock {
+  text: string;
+  confidence: number;
+  bounding_box: number[][];
+}
+
+export interface OcrImageResult {
+  image_id: string;
+  status: string;
+  blocks: OcrBlock[];
+  error: string | null;
+}
+
 export interface ProcessingResult {
   inspection_id: string;
   status: string;
@@ -530,7 +543,14 @@ export interface ProcessingResult {
   processed_images: number;
   failed_images: number;
   images: ImageProcessingDetail[];
+  ocr_images: OcrImageResult[];
   errors: string[];
+}
+
+export interface OcrResult {
+  inspection_id: string;
+  total_blocks: number;
+  images: OcrImageResult[];
 }
 
 export async function processInspection(
@@ -560,5 +580,33 @@ export async function processInspection(
   } catch (error) {
     console.error("Failed to process inspection:", error);
     throw error;
+  }
+}
+
+export async function fetchInspectionOcr(
+  token: string,
+  inspectionId: string,
+): Promise<OcrResult | null> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/inspections/${inspectionId}/ocr`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        cache: "no-store",
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error ${response.status}`);
+    }
+
+    return (await response.json()) as OcrResult;
+  } catch (error) {
+    console.error("Failed to fetch OCR results:", error);
+    return null;
   }
 }
