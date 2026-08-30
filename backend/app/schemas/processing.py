@@ -46,3 +46,18 @@ class OcrResultResponse(BaseModel):
     inspection_id: str
     total_blocks: int
     images: list[OcrImageDetail] = []
+
+
+class DeclarationDetail(BaseModel):
+    declaration_id: str
+    declaration_type: str
+    extracted_value: str
+    confidence: float
+    created_at: str
+
+
+class DeclarationExtractionResponse(BaseModel):
+    inspection_id: str
+    declarations: list[DeclarationDetail]
+    total_extracted: int
+    method: str

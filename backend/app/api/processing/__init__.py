@@ -9,9 +9,12 @@ from app.schemas.processing import (
     OcrBlockDetail,
     OcrImageDetail,
     OcrResultResponse,
+    DeclarationDetail,
+    DeclarationExtractionResponse,
 )
 from app.services.processing import process_inspection_images
 from app.services.ocr import run_ocr_on_image
+from app.services.declaration_extraction import extract_declarations
 
 logger = logging.getLogger(__name__)
 
@@ -280,3 +283,163 @@ async def get_ocr_results(
         total_blocks=total_blocks,
         images=images,
     )
+
+
+@router.post(
+    "/api/inspections/{inspection_id}/extract",
+    response_model=DeclarationExtractionResponse,
+)
+async def extract_declarations_endpoint(
+    inspection_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Extract structured declarations from stored OCR results.
+    Persists declarations to the declarations table.
+    Does NOT re-run OCR.
+    """
+    client = get_supabase_client()
+    user_id = current_user["user_id"]
+
+    await _verify_inspection_ownership(client, inspection_id, user_id)
+
+    # Retrieve stored OCR results
+    try:
+        ocr_result = (
+            client.table("ocr_results")
+            .select("*")
+            .eq("inspection_id", inspection_id)
+            .order("created_at", desc=False)
+            .execute()
+        )
+    except Exception as exc:
+        logger.error(f"Failed to fetch OCR results for extraction: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve OCR results for extraction.",
+        )
+
+    if not ocr_result.data:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No OCR results found for this inspection. Run processing first.",
+        )
+
+    # Combine all OCR text and blocks across images
+    all_text_parts: list[str] = []
+    all_blocks: list[dict] = []
+    for row in ocr_result.data:
+        text = row.get("full_text", "")
+        if text:
+            all_text_parts.append(text)
+        blocks = row.get("blocks_json") or []
+        all_blocks.extend(blocks)
+
+    combined_text = "\n\n".join(all_text_parts)
+
+    if not combined_text.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="OCR results contain no text. Cannot extract declarations.",
+        )
+
+    # Run declaration extraction
+    try:
+        extraction_result = extract_declarations(
+            full_text=combined_text,
+            blocks=all_blocks,
+        )
+    except Exception as exc:
+        logger.error(f"Declaration extraction failed: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Declaration extraction failed: {str(exc)}",
+        )
+
+    # Persist declarations (delete existing ones first for idempotency)
+    try:
+        client.table("declarations").delete().eq("inspection_id", inspection_id).execute()
+
+        inserted_declarations: list[dict] = []
+        for decl in extraction_result.declarations:
+            row_data = {
+                "inspection_id": inspection_id,
+                "declaration_type": decl.declaration_type,
+                "extracted_value": decl.extracted_value,
+                "confidence": round(decl.confidence, 4),
+            }
+            result = client.table("declarations").insert(row_data).execute()
+            if result.data:
+                inserted_declarations.append(result.data[0])
+
+    except Exception as exc:
+        logger.error(f"Failed to persist declarations: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to persist declarations: {str(exc)}",
+        )
+
+    # Build response
+    declarations_response = []
+    for row in inserted_declarations:
+        declarations_response.append(DeclarationDetail(
+            declaration_id=row["declaration_id"],
+            declaration_type=row["declaration_type"],
+            extracted_value=row["extracted_value"],
+            confidence=float(row["confidence"]),
+            created_at=str(row["created_at"]),
+        ))
+
+    logger.info(
+        f"Extracted {len(declarations_response)} declarations for {inspection_id} "
+        f"using {extraction_result.method} method"
+    )
+
+    return DeclarationExtractionResponse(
+        inspection_id=inspection_id,
+        declarations=declarations_response,
+        total_extracted=len(declarations_response),
+        method=extraction_result.method,
+    )
+
+
+@router.get(
+    "/api/inspections/{inspection_id}/declarations",
+    response_model=list[DeclarationDetail],
+)
+async def get_declarations(
+    inspection_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """Retrieve stored declarations for an inspection. Does NOT re-run extraction."""
+    client = get_supabase_client()
+    user_id = current_user["user_id"]
+
+    await _verify_inspection_ownership(client, inspection_id, user_id)
+
+    try:
+        result = (
+            client.table("declarations")
+            .select("*")
+            .eq("inspection_id", inspection_id)
+            .order("created_at", desc=False)
+            .execute()
+        )
+    except Exception as exc:
+        logger.error(f"Failed to fetch declarations: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve declarations.",
+        )
+
+    declarations = []
+    for row in (result.data or []):
+        declarations.append(DeclarationDetail(
+            declaration_id=row["declaration_id"],
+            declaration_type=row["declaration_type"],
+            extracted_value=row["extracted_value"],
+            confidence=float(row["confidence"]),
+            created_at=str(row["created_at"]),
+        ))
+
+    return declarations

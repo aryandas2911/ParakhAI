@@ -12,10 +12,13 @@ import {
   fetchInspectionOcr,
   deleteInspectionImage,
   processInspection,
+  extractDeclarations,
+  fetchDeclarations,
   type InspectionData,
   type InspectionImageData,
   type ProcessingResult,
   type OcrImageResult,
+  type DeclarationData,
 } from "@/lib/api";
 import ComplianceHeader from "./components/ComplianceHeader";
 import EvidenceFrameCard from "./components/EvidenceFrameCard";
@@ -53,8 +56,12 @@ export default function ComplianceAnalysisPage() {
   const [ocrImages, setOcrImages] = useState<OcrImageResult[]>([]);
   const [ocrLoading, setOcrLoading] = useState(false);
 
-  // Declaration data state — populated from OCR (empty until extraction step)
-  const [declarations, setDeclarations] = useState<{ id: string; field: string; extractedValue: string; status: "verified" | "requires_review" | "not_detected"; confidence: number }[]>([]);
+  // Declaration data state — populated from extraction API
+  const [declarations, setDeclarations] = useState<DeclarationData[]>([]);
+
+  // Extraction state
+  const [extracting, setExtracting] = useState(false);
+  const [extractionError, setExtractionError] = useState<string | null>(null);
 
   // Processing state
   const [processing, setProcessing] = useState(false);
@@ -100,6 +107,19 @@ export default function ComplianceAnalysisPage() {
         if (result.ocr_images) {
           setOcrImages(result.ocr_images);
         }
+        // Auto-extract declarations after OCR completes
+        if (result.ocr_images && result.ocr_images.length > 0) {
+          setExtracting(true);
+          setExtractionError(null);
+          try {
+            const extractionResult = await extractDeclarations(session.access_token, inspectionId);
+            setDeclarations(extractionResult.declarations);
+          } catch (err) {
+            setExtractionError(err instanceof Error ? err.message : "Extraction failed.");
+          } finally {
+            setExtracting(false);
+          }
+        }
       } catch (err) {
         setProcessingError(err instanceof Error ? err.message : "Auto-processing failed.");
       } finally {
@@ -127,6 +147,34 @@ export default function ComplianceAnalysisPage() {
     loadOcr();
   }, [session?.access_token, inspectionId, loading]);
 
+  // Fetch stored declarations on load
+  useEffect(() => {
+    if (!session?.access_token || !inspectionId) return;
+    if (loading) return;
+
+    const loadDeclarations = async () => {
+      const decls = await fetchDeclarations(session.access_token!, inspectionId);
+      if (decls && decls.length > 0) {
+        setDeclarations(decls);
+      }
+    };
+
+    loadDeclarations();
+  }, [session?.access_token, inspectionId, loading]);
+
+  // Map API DeclarationData to DeclarationRow format for the table
+  const mappedDeclarations = declarations.map((d) => ({
+    id: d.declaration_id,
+    field: d.declaration_type,
+    extractedValue: d.extracted_value || "Not detected",
+    status: (!d.extracted_value || d.extracted_value === "Not detected")
+      ? "not_detected" as const
+      : d.confidence >= 0.7
+        ? "verified" as const
+        : "requires_review" as const,
+    confidence: Math.round(d.confidence * 100),
+  }));
+
   // Open evidence viewer
   const handleViewEvidence = useCallback((initialIndex?: number) => {
     setEvidenceInitialIndex(initialIndex ?? 0);
@@ -139,10 +187,18 @@ export default function ComplianceAnalysisPage() {
     setEditModalOpen(true);
   }, []);
 
-  // Save edited declaration
+  // Save edited declaration (updates local mapped state only)
   const handleSaveEdit = useCallback((updated: { id: string; field: string; extractedValue: string; status: "verified" | "requires_review" | "not_detected"; confidence: number }) => {
     setDeclarations((prev) =>
-      prev.map((d) => (d.id === updated.id ? updated : d))
+      prev.map((d) =>
+        d.declaration_id === updated.id
+          ? {
+              ...d,
+              extracted_value: updated.extractedValue,
+              confidence: updated.confidence / 100,
+            }
+          : d
+      )
     );
   }, []);
 
@@ -174,6 +230,19 @@ export default function ComplianceAnalysisPage() {
       setProcessingResult(result);
       if (result.ocr_images) {
         setOcrImages(result.ocr_images);
+      }
+      // Auto-extract declarations after processing
+      if (result.ocr_images && result.ocr_images.length > 0) {
+        setExtracting(true);
+        setExtractionError(null);
+        try {
+          const extractionResult = await extractDeclarations(session.access_token, inspectionId);
+          setDeclarations(extractionResult.declarations);
+        } catch (err) {
+          setExtractionError(err instanceof Error ? err.message : "Extraction failed.");
+        } finally {
+          setExtracting(false);
+        }
       }
     } catch (err) {
       setProcessingError(err instanceof Error ? err.message : "Processing failed.");
@@ -267,7 +336,7 @@ export default function ComplianceAnalysisPage() {
         {/* Right Column - Declaration Analysis + Visual Checks + Findings */}
         <div className="lg:col-span-7 flex flex-col space-y-5">
           <DeclarationAnalysisTable
-            declarations={declarations}
+            declarations={mappedDeclarations}
             onEditRow={handleEditRow}
           />
           <OcrTextCard
@@ -342,10 +411,19 @@ export default function ComplianceAnalysisPage() {
               <span>Processing &amp; OCR running...</span>
             </div>
           )}
+          {extracting && (
+            <div className="flex items-center gap-2 text-sm text-slate-500">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span>Extracting declarations...</span>
+            </div>
+          )}
           {processingError && (
             <p className="text-sm font-medium text-red-600">{processingError}</p>
           )}
-          {processingResult && !processing && (
+          {extractionError && (
+            <p className="text-sm font-medium text-red-600">{extractionError}</p>
+          )}
+          {processingResult && !processing && !extracting && (
             <p className="text-sm text-slate-600">
               Processed{" "}
               <span className="font-semibold text-emerald-600">
@@ -368,18 +446,20 @@ export default function ComplianceAnalysisPage() {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={handleProcessImages}
-              disabled={processing}
+              disabled={processing || extracting}
               id="btn-process-images"
               className="inline-flex items-center gap-2.5 px-6 py-3 rounded-lg border border-slate-200 text-sm font-semibold text-slate-700 bg-white hover:bg-slate-50 hover:border-slate-300 hover:text-[#20638b] active:bg-slate-100 transition-all duration-200 cursor-pointer shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {processing ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : extracting ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 0 1-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 0 1 4.5 0m0 0v5.714a2.25 2.25 0 0 0 .659 1.591L19 14.5m-4.25-11.396c.251.023.501.05.75.082M12 21a8.966 8.966 0 0 0 5.982-2.275M12 21a8.966 8.966 0 0 1-5.982-2.275M15.75 3.186a24.284 24.284 0 0 1 2.293.094m-6.293.094A24.284 24.284 0 0 0 9.467 3.186m6.293.094c.183.042.365.083.546.124m-.546-.124a24.284 24.284 0 0 1-2.293-.094" />
                 </svg>
               )}
-              <span>{processing ? "Processing..." : "Process Images"}</span>
+              <span>{processing ? "Processing..." : extracting ? "Extracting..." : "Process Images"}</span>
             </motion.button>
           )}
           <motion.button

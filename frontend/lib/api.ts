@@ -610,3 +610,78 @@ export async function fetchInspectionOcr(
     return null;
   }
 }
+
+// ---- Declaration Extraction API ----
+
+export interface DeclarationData {
+  declaration_id: string;
+  declaration_type: string;
+  extracted_value: string;
+  confidence: number;
+  created_at: string;
+}
+
+export interface ExtractionResult {
+  inspection_id: string;
+  declarations: DeclarationData[];
+  total_extracted: number;
+  method: string;
+}
+
+export async function extractDeclarations(
+  token: string,
+  inspectionId: string,
+): Promise<ExtractionResult> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/inspections/${inspectionId}/extract`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => null);
+      const message =
+        errorBody?.detail || `Failed to extract declarations (HTTP ${response.status})`;
+      throw new Error(message);
+    }
+
+    return (await response.json()) as ExtractionResult;
+  } catch (error) {
+    console.error("Failed to extract declarations:", error);
+    throw error;
+  }
+}
+
+export async function fetchDeclarations(
+  token: string,
+  inspectionId: string,
+): Promise<DeclarationData[]> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/inspections/${inspectionId}/declarations`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        cache: "no-store",
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error ${response.status}`);
+    }
+
+    return (await response.json()) as DeclarationData[];
+  } catch (error) {
+    console.error("Failed to fetch declarations:", error);
+    return [];
+  }
+}
