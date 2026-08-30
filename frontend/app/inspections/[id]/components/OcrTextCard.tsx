@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import { FileText, AlertCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import type { OcrImageResult } from "@/lib/api";

@@ -56,10 +56,10 @@ async def schema_health_check():
         "inspections",
         "inspection_images",
         "declarations",
+        "compliance_rules",
         "violations",
         "evidence",
         "reports",
-        "compliance_rules",
     ]
 
     verified_tables = {}

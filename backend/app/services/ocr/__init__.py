@@ -5,7 +5,6 @@ OCR service using PaddleOCR for extracting text from inspection images.
 import io
 import logging
 import os
-import sys
 from dataclasses import dataclass, field
 from typing import Optional
 

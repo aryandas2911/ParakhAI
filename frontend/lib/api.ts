@@ -691,3 +691,94 @@ export async function fetchDeclarations(
     return [];
   }
 }
+
+// ---- Compliance Rules API ----
+
+export interface ComplianceRuleData {
+  rule_id: string;
+  rule_reference: string;
+  product_category: string;
+  declaration_type: string;
+  validation_condition: string;
+  violation_type: string;
+  severity: string;
+  evidence_requirement: string | null;
+  effective_date: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RuleMatch {
+  rule: ComplianceRuleData;
+  declaration_type: string;
+  extracted_value: string;
+  declaration_confidence: number;
+}
+
+export interface ComplianceAnalysisResult {
+  inspection_id: string;
+  product_category: string;
+  matched_rules: RuleMatch[];
+  total_rules_loaded: number;
+  total_declarations: number;
+  message: string | null;
+}
+
+export async function fetchComplianceRules(
+  token: string,
+  params?: { product_category?: string; declaration_type?: string },
+): Promise<ComplianceRuleData[]> {
+  try {
+    const url = new URL(`${API_BASE_URL}/api/compliance-rules`);
+    if (params?.product_category)
+      url.searchParams.set("product_category", params.product_category);
+    if (params?.declaration_type)
+      url.searchParams.set("declaration_type", params.declaration_type);
+
+    const response = await fetch(url.toString(), {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error ${response.status}`);
+    }
+
+    return (await response.json()) as ComplianceRuleData[];
+  } catch (error) {
+    console.error("Failed to fetch compliance rules:", error);
+    return [];
+  }
+}
+
+export async function fetchComplianceAnalysis(
+  token: string,
+  inspectionId: string,
+): Promise<ComplianceAnalysisResult | null> {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/compliance-rules/analysis/${inspectionId}`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        cache: "no-store",
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error ${response.status}`);
+    }
+
+    return (await response.json()) as ComplianceAnalysisResult;
+  } catch (error) {
+    console.error("Failed to fetch compliance analysis:", error);
+    return null;
+  }
+}

@@ -14,11 +14,13 @@ import {
   processInspection,
   extractDeclarations,
   fetchDeclarations,
+  fetchComplianceAnalysis,
   type InspectionData,
   type InspectionImageData,
   type ProcessingResult,
   type OcrImageResult,
   type DeclarationData,
+  type ComplianceAnalysisResult,
 } from "@/lib/api";
 import ComplianceHeader from "./components/ComplianceHeader";
 import EvidenceFrameCard from "./components/EvidenceFrameCard";
@@ -67,6 +69,9 @@ export default function ComplianceAnalysisPage() {
   const [processing, setProcessing] = useState(false);
   const [processingResult, setProcessingResult] = useState<ProcessingResult | null>(null);
   const [processingError, setProcessingError] = useState<string | null>(null);
+
+  // Compliance analysis state
+  const [complianceAnalysis, setComplianceAnalysis] = useState<ComplianceAnalysisResult | null>(null);
 
   // Fetch inspection data
   useEffect(() => {
@@ -162,6 +167,19 @@ export default function ComplianceAnalysisPage() {
     loadDeclarations();
   }, [session?.access_token, inspectionId, loading]);
 
+  // Fetch compliance analysis (rules + matching) once declarations are available
+  useEffect(() => {
+    if (!session?.access_token || !inspectionId) return;
+    if (loading) return;
+
+    const loadAnalysis = async () => {
+      const analysis = await fetchComplianceAnalysis(session.access_token!, inspectionId);
+      setComplianceAnalysis(analysis);
+    };
+
+    loadAnalysis();
+  }, [session?.access_token, inspectionId, loading]);
+
   // Flatten JSONB declarations and filter by current image, then map to table format
   const currentImageId = images[frameImageIndex]?.image_id || null;
   const mappedDeclarations = declarations
@@ -185,6 +203,21 @@ export default function ComplianceAnalysisPage() {
     setEvidenceInitialIndex(initialIndex ?? 0);
     setEvidenceModalOpen(true);
   }, []);
+
+  // Map matched rules to ComplianceFinding format
+  const complianceFindings = (complianceAnalysis?.matched_rules || []).map((match, idx) => ({
+    id: `match-${idx}`,
+    itemNumber: String(idx + 1).padStart(2, "0"),
+    title: `${match.declaration_type} declaration`,
+    subtext: match.extracted_value
+      ? `"${match.extracted_value}"`
+      : '"Not detected"',
+    severity: (match.rule.severity === "high" || match.rule.severity === "medium" || match.rule.severity === "low"
+      ? match.rule.severity
+      : "low") as "high" | "medium" | "low",
+    rule: match.rule.rule_reference,
+    validationCondition: match.rule.validation_condition,
+  }));
 
   // Open edit modal
   const handleEditRow = useCallback((row: { id: string; field: string; extractedValue: string; status: "verified" | "requires_review" | "not_detected"; confidence: number }) => {
@@ -210,11 +243,10 @@ export default function ComplianceAnalysisPage() {
   // Handle findings evidence click
   const handleFindingEvidence = useCallback(
     (findingId: string) => {
-      const indexMap: Record<string, number> = {
-        "finding-1": 1,
-        "finding-2": 2,
-      };
-      handleViewEvidence(indexMap[findingId] ?? 0);
+      // Match finding IDs like "match-0" to image indices
+      const match = findingId.match(/^match-(\d+)$/);
+      const index = match ? parseInt(match[1], 10) : 0;
+      handleViewEvidence(index);
     },
     [handleViewEvidence]
   );
@@ -350,6 +382,7 @@ export default function ComplianceAnalysisPage() {
           />
           <VisualChecksCard />
           <ComplianceFindingsCard
+            findings={complianceFindings}
             onViewEvidence={handleFindingEvidence}
           />
         </div>

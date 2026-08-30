@@ -8,6 +8,7 @@ from app.api.profile import router as profile_router
 from app.api.products import router as products_router
 from app.api.inspections import router as inspections_router
 from app.api.processing import router as processing_router
+from app.api.compliance import router as compliance_router
 
 logging.basicConfig(level=logging.INFO)
 
@@ -32,6 +33,7 @@ app.include_router(profile_router)
 app.include_router(products_router)
 app.include_router(inspections_router)
 app.include_router(processing_router)
+app.include_router(compliance_router)
 
 
 
