@@ -162,18 +162,23 @@ export default function ComplianceAnalysisPage() {
     loadDeclarations();
   }, [session?.access_token, inspectionId, loading]);
 
-  // Map API DeclarationData to DeclarationRow format for the table
-  const mappedDeclarations = declarations.map((d) => ({
-    id: d.declaration_id,
-    field: d.declaration_type,
-    extractedValue: d.extracted_value || "Not detected",
-    status: (!d.extracted_value || d.extracted_value === "Not detected")
-      ? "not_detected" as const
-      : d.confidence >= 0.7
-        ? "verified" as const
-        : "requires_review" as const,
-    confidence: Math.round(d.confidence * 100),
-  }));
+  // Flatten JSONB declarations and filter by current image, then map to table format
+  const currentImageId = images[frameImageIndex]?.image_id || null;
+  const mappedDeclarations = declarations
+    .filter((d) => !currentImageId || d.image_id === currentImageId)
+    .flatMap((d) =>
+      (d.declarations_json || []).map((item, idx) => ({
+        id: `${d.declaration_id}-${idx}`,
+        field: item.declaration_type,
+        extractedValue: item.extracted_value || "Not detected",
+        status: (!item.extracted_value || item.extracted_value === "Not detected")
+          ? "not_detected" as const
+          : item.confidence >= 0.7
+            ? "verified" as const
+            : "requires_review" as const,
+        confidence: Math.round(item.confidence * 100),
+      }))
+    );
 
   // Open evidence viewer
   const handleViewEvidence = useCallback((initialIndex?: number) => {

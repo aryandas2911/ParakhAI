@@ -14,11 +14,8 @@ Extraction targets (declarations only - no compliance decisions):
 - Consumer care details (name, address, phone, email, website)
 """
 import re
-import logging
 from dataclasses import dataclass, field
 from typing import Optional
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -345,12 +342,7 @@ def extract_declarations(
             if declaration and declaration.declaration_type not in seen_types:
                 result.declarations.append(declaration)
                 seen_types.add(declaration.declaration_type)
-        except Exception as exc:
-            logger.warning(f"Extractor {extractor.__name__} failed: {exc}")
-
-    logger.info(
-        f"Extracted {len(result.declarations)} declarations "
-        f"using {result.method} method"
-    )
+        except Exception:
+            pass
 
     return result

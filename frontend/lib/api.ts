@@ -613,11 +613,17 @@ export async function fetchInspectionOcr(
 
 // ---- Declaration Extraction API ----
 
-export interface DeclarationData {
-  declaration_id: string;
+export interface DeclarationItem {
   declaration_type: string;
   extracted_value: string;
   confidence: number;
+}
+
+export interface DeclarationData {
+  declaration_id: string;
+  image_id: string;
+  declarations_json: DeclarationItem[];
+  avg_confidence: number;
   created_at: string;
 }
 

@@ -50,9 +50,9 @@ class OcrResultResponse(BaseModel):
 
 class DeclarationDetail(BaseModel):
     declaration_id: str
-    declaration_type: str
-    extracted_value: str
-    confidence: float
+    image_id: str
+    declarations_json: list[dict]
+    avg_confidence: float
     created_at: str
 
 
